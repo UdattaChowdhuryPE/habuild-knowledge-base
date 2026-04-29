@@ -2,6 +2,7 @@ import streamlit as st
 import os
 from frontend.utils.auth import init_session_state, is_authenticated, is_hr, logout, LOCATIONS
 from frontend.utils.api import client
+from frontend.utils.styles import inject_global_styles, page_header, sidebar_brand, sidebar_user_card
 
 # Page configuration
 st.set_page_config(
@@ -10,29 +11,30 @@ st.set_page_config(
     layout="wide"
 )
 
+# Inject styles
+inject_global_styles()
+
 # Initialize session state
 init_session_state()
 
 # Sidebar
 with st.sidebar:
-    st.title("HR Policy Assistant")
+    sidebar_brand()
 
     if is_authenticated():
-        st.write(f"**{st.session_state.name}**")
-        st.write(f"Location: {st.session_state.location}")
-        st.write(f"Role: {st.session_state.role}")
+        sidebar_user_card(st.session_state.name, st.session_state.location, st.session_state.role)
 
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("📄 Documents"):
+            if st.button("📄 Documents", use_container_width=True):
                 st.switch_page("pages/2_documents.py")
 
         with col2:
-            if st.button("Logout"):
+            if st.button("Logout", use_container_width=True):
                 logout()
 
         if is_hr():
-            if st.button("⚙️ Admin Panel"):
+            if st.button("⚙️ Admin Panel", use_container_width=True):
                 st.switch_page("pages/1_admin.py")
     else:
         st.info("Sign in to get started")
@@ -41,21 +43,34 @@ with st.sidebar:
 # Main content
 if not is_authenticated():
     # Login screen
-    st.title("Welcome to HR Policy Assistant")
-    st.write("Sign in with your Habuild email to access HR policies and documents.")
-
-    col1, col2 = st.columns([1, 1])
+    col1, col2 = st.columns([1, 1], gap="large")
 
     with col1:
-        st.image("https://via.placeholder.com/300x200?text=HR+Policies", use_column_width=True)
+        st.markdown("""
+        <div class="hb-hero">
+            <div class="hb-hero-icon">🏃‍♂️</div>
+            <h2>Your HR Companion</h2>
+            <p>Get instant answers to all your HR policy questions — leave, benefits, compliance, and more.</p>
+            <div class="hb-hero-pills">
+                <span class="hb-hero-pill">Leave Policies</span>
+                <span class="hb-hero-pill">Benefits</span>
+                <span class="hb-hero-pill">Compliance</span>
+                <span class="hb-hero-pill">Onboarding</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
     with col2:
-        st.write("### Sign In")
+        st.markdown("""
+        <h3>Sign In</h3>
+        <p class="hb-login-subtitle">Use your Habuild email address to access HR resources</p>
+        """, unsafe_allow_html=True)
 
-        email = st.text_input("Email", placeholder="your.email@habuild.in")
+        email = st.text_input("Email", placeholder="your.email@habuild.in", label_visibility="collapsed")
+        st.markdown('<div style="height:4px"></div>', unsafe_allow_html=True)
         location = st.selectbox("Office Location", options=LOCATIONS)
 
-        if st.button("Sign In", type="primary", use_container_width=True):
+        if st.button("Sign In →", type="primary", use_container_width=True):
             if not email or "@habuild.in" not in email:
                 st.error("Please enter a valid Habuild email address")
             else:
@@ -82,7 +97,7 @@ if not is_authenticated():
 
 else:
     # Chat interface
-    st.title("HR Policy Assistant")
+    page_header("💬", "HR Policy Assistant", "Ask me anything about Habuild's HR policies")
 
     # Initialize conversation if needed
     if not st.session_state.conversation_id:

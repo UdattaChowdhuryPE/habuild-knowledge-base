@@ -1,9 +1,11 @@
 import streamlit as st
 from frontend.utils.auth import init_session_state, is_authenticated, logout, LOCATIONS
 from frontend.utils.api import client
+from frontend.utils.styles import inject_global_styles, page_header, sidebar_brand, sidebar_user_card
 
 st.set_page_config(page_title="Documents", layout="wide")
 
+inject_global_styles()
 init_session_state()
 
 # Check authentication
@@ -13,20 +15,22 @@ if not is_authenticated():
 
 # Sidebar
 with st.sidebar:
-    st.title("Documents")
-    st.write(f"**{st.session_state.name}**")
+    sidebar_brand()
+    sidebar_user_card(st.session_state.name, st.session_state.location, st.session_state.role)
 
-    if st.button("← Back to Chat"):
-        st.switch_page("pages/app.py")
+    if st.button("← Back to Chat", use_container_width=True):
+        st.switch_page("app.py")
 
-    if st.button("Logout"):
+    if st.button("Logout", use_container_width=True):
         logout()
 
-st.title("Document Library")
-st.write(f"Documents for your location: **{st.session_state.location}**")
+page_header("📚", "Document Library", f"Documents for {st.session_state.location}")
 
 # Search and filter
-search_term = st.text_input("Search documents...")
+st.markdown('<div style="max-width:520px">', unsafe_allow_html=True)
+search_term = st.text_input("", placeholder="🔍  Search by title or category...", label_visibility="collapsed")
+st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('<div style="height:0.5rem"></div>', unsafe_allow_html=True)
 
 try:
     # Fetch documents for user's location
@@ -61,21 +65,18 @@ try:
 
                     for idx, doc in enumerate(docs):
                         with cols[idx % 2]:
-                            st.write(f"**{doc['title']}**")
-                            st.caption(f"Added: {doc['created_at'][:10]}")
-
-                            # File type icon and link
                             file_name = doc["file_name"]
-                            if file_name.endswith(".pdf"):
-                                icon = "📕"
-                            elif file_name.endswith(".docx") or file_name.endswith(".doc"):
-                                icon = "📗"
-                            elif file_name.endswith(".xlsx") or file_name.endswith(".xls"):
-                                icon = "📙"
-                            else:
-                                icon = "📄"
+                            icon_map = {".pdf": "📕", ".docx": "📗", ".doc": "📗", ".xlsx": "📙", ".xls": "📙"}
+                            ext = next((k for k in icon_map if file_name.endswith(k)), None)
+                            icon = icon_map.get(ext, "📄")
 
-                            st.markdown(f"[{icon} Open {file_name}]({doc['file_url']})")
+                            st.markdown(f"""
+                            <div class="hb-doc-card">
+                                <div class="doc-title">{doc['title']}</div>
+                                <div class="doc-meta">Added {doc['created_at'][:10]}</div>
+                                <a href="{doc['file_url']}" target="_blank">{icon} Open {file_name}</a>
+                            </div>
+                            """, unsafe_allow_html=True)
 
 except Exception as e:
     st.error(f"Error loading documents: {str(e)}")
