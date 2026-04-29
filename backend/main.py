@@ -1,12 +1,13 @@
 import os
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
 from dotenv import load_dotenv
 
-from backend.routers import chat, policies, documents, employees, auth
+# Must load env before any service imports that read os.getenv at module level
+load_dotenv(Path(__file__).parent / ".env")
 
-# Load environment variables
-load_dotenv()
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from backend.routers import chat, policies, documents, employees, auth
 
 app = FastAPI(
     title="HR Policy Assistant API",
@@ -44,4 +45,4 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)
