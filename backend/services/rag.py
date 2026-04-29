@@ -46,13 +46,13 @@ def index_document(
 
     # Prepare data for storage
     chunks_data = []
-    for chunk_text, embedding in zip(chunks, embeddings):
+    for chunk_content, embedding in zip(chunks, embeddings):
         if embedding:  # Only store if embedding succeeded
             chunks_data.append({
                 "source_id": source_id,
                 "source_type": source_type,
                 "source_title": source_title,
-                "content": chunk_text,
+                "content": chunk_content,
                 "embedding": embedding,
                 "locations": locations,
             })
