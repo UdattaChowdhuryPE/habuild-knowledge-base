@@ -1,26 +1,27 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from typing import List, Dict, Any
 from backend.models import ChatRequest
 from backend.services.db import db
 from backend.services.rag import get_relevant_context
 from backend.services.llm import llm_service
+from backend.dependencies import get_current_user
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
 @router.post("/start")
-async def start_conversation(location: str, user_id: str):
+async def start_conversation(location: str, current_user: dict = Depends(get_current_user)):
     """Start a new conversation."""
     try:
-        conversation = db.create_conversation(user_id, location)
+        conversation = db.create_conversation(current_user["id"], location)
         return {"conversation_id": conversation["id"]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/message")
-async def send_message(request: ChatRequest):
+async def send_message(request: ChatRequest, current_user: dict = Depends(get_current_user)):
     """
     Send a message and get a streaming response from Claude.
     """

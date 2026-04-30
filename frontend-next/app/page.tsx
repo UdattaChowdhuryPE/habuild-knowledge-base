@@ -1,11 +1,16 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import { Session } from "@supabase/supabase-js"
 import { Sidebar } from "@/components/sidebar"
 import { SignInView } from "@/components/sign-in-view"
+import { CompleteProfileView } from "@/components/complete-profile-view"
 import { AdminPanel } from "@/components/admin-panel"
 import { DocumentsView } from "@/components/documents-view"
-import { startConversation, streamMessage } from "@/lib/api"
+import { startConversation, streamMessage, getMyProfile } from "@/lib/api"
+import { supabase } from "@/lib/supabase"
+
+type AuthState = "loading" | "unauthenticated" | "needs-profile" | "authenticated"
 
 interface User {
   id: string
@@ -21,8 +26,12 @@ interface Message {
 }
 
 export default function HabuildHRPortal() {
-  const [currentPage, setCurrentPage] = useState<"app" | "admin" | "documents">("app")
+  const [authState, setAuthState] = useState<AuthState>("loading")
+  const [session, setSession] = useState<Session | null>(null)
   const [user, setUser] = useState<User | null>(null)
+  const [authError, setAuthError] = useState("")
+
+  const [currentPage, setCurrentPage] = useState<"app" | "admin" | "documents">("app")
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
@@ -33,12 +42,70 @@ export default function HabuildHRPortal() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  const handleSignIn = (u: User) => {
-    setUser(u)
+  useEffect(() => {
+    initializeAuth()
+  }, [])
+
+  const initializeAuth = async () => {
+    setAuthState("loading")
+
+    const { data: { session: existingSession } } = await supabase.auth.getSession()
+    await handleSession(existingSession)
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      handleSession(newSession)
+    })
+
+    return () => subscription.unsubscribe()
   }
 
-  const handleSignOut = () => {
+  const handleSession = async (session: Session | null) => {
+    if (!session) {
+      setAuthState("unauthenticated")
+      setSession(null)
+      setUser(null)
+      return
+    }
+
+    const email = session.user?.email ?? ""
+    if (!email.endsWith("@habuild.in")) {
+      await supabase.auth.signOut()
+      setAuthError("Only @habuild.in accounts are allowed")
+      setAuthState("unauthenticated")
+      setSession(null)
+      setUser(null)
+      return
+    }
+
+    setSession(session)
+    setAuthError("")
+
+    try {
+      const profile = await getMyProfile(session.access_token)
+
+      if (!profile || !profile.location) {
+        setAuthState("needs-profile")
+        setUser(null)
+      } else {
+        setUser(profile)
+        setAuthState("authenticated")
+      }
+    } catch (error) {
+      console.error("Profile fetch error:", error)
+      setAuthState("needs-profile")
+    }
+  }
+
+  const handleProfileComplete = (completedUser: User) => {
+    setUser(completedUser)
+    setAuthState("authenticated")
+  }
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
     setUser(null)
+    setSession(null)
+    setAuthState("unauthenticated")
     setConversationId(null)
     setMessages([])
     setCurrentPage("app")
@@ -46,13 +113,13 @@ export default function HabuildHRPortal() {
 
   const ensureConversation = async (): Promise<string> => {
     if (conversationId) return conversationId
-    const { conversation_id } = await startConversation(user!.location, user!.id)
+    const { conversation_id } = await startConversation(user!.location, session!.access_token)
     setConversationId(conversation_id)
     return conversation_id
   }
 
   const handleSend = async () => {
-    if (!input.trim() || streaming || !user) return
+    if (!input.trim() || streaming || !user || !session) return
     const question = input.trim()
     setInput("")
     setMessages((prev) => [...prev, { role: "user", content: question }])
@@ -61,7 +128,7 @@ export default function HabuildHRPortal() {
     try {
       const convId = await ensureConversation()
       setMessages((prev) => [...prev, { role: "assistant", content: "" }])
-      for await (const token of streamMessage(question, convId, user.location)) {
+      for await (const token of streamMessage(question, convId, user.location, session.access_token)) {
         setMessages((prev) => {
           const updated = [...prev]
           updated[updated.length - 1] = {
@@ -85,20 +152,33 @@ export default function HabuildHRPortal() {
     }
   }
 
+  if (authState === "loading") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="mb-4 text-5xl">🏃</div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar
         currentPage={currentPage}
         onPageChange={setCurrentPage}
-        isSignedIn={!!user}
+        isSignedIn={authState === "authenticated"}
         user={user}
         onSignOut={handleSignOut}
       />
 
       <main className="flex-1 overflow-auto">
-        {!user && <SignInView onSignIn={handleSignIn} />}
+        {authState === "unauthenticated" && <SignInView error={authError} />}
 
-        {user && currentPage === "app" && (
+        {authState === "needs-profile" && session && <CompleteProfileView session={session} onProfileComplete={handleProfileComplete} />}
+
+        {authState === "authenticated" && user && currentPage === "app" && (
           <div className="flex flex-col h-full p-8">
             <div className="mx-auto w-full max-w-4xl flex flex-col flex-1">
               {/* Welcome card */}
@@ -120,11 +200,13 @@ export default function HabuildHRPortal() {
                 <div className="flex-1 space-y-4 mb-6 overflow-y-auto max-h-[60vh]">
                   {messages.map((msg, i) => (
                     <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                      <div className={`max-w-[75%] rounded-xl px-4 py-3 text-sm leading-relaxed ${
-                        msg.role === "user"
-                          ? "bg-teal-600 text-white"
-                          : "bg-white border border-slate-200 text-slate-800 shadow-sm"
-                      }`}>
+                      <div
+                        className={`max-w-[75%] rounded-xl px-4 py-3 text-sm leading-relaxed ${
+                          msg.role === "user"
+                            ? "bg-teal-600 text-white"
+                            : "bg-white border border-slate-200 text-slate-800 shadow-sm"
+                        }`}
+                      >
                         {msg.content || (streaming && msg.role === "assistant" ? (
                           <span className="flex gap-1">
                             <span className="animate-bounce">•</span>
@@ -164,8 +246,8 @@ export default function HabuildHRPortal() {
           </div>
         )}
 
-        {user && currentPage === "admin" && <AdminPanel />}
-        {user && currentPage === "documents" && <DocumentsView location={user.location} />}
+        {authState === "authenticated" && user && currentPage === "admin" && <AdminPanel token={session?.access_token} />}
+        {authState === "authenticated" && user && currentPage === "documents" && <DocumentsView location={user.location} token={session?.access_token} />}
       </main>
     </div>
   )

@@ -19,6 +19,11 @@ class SupabaseDB:
         response = self.client.table("profiles").select("*").eq("email", email).limit(1).execute()
         return response.data[0] if response.data else None
 
+    def get_profile_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Fetch user profile by UUID."""
+        response = self.client.table("profiles").select("*").eq("id", user_id).limit(1).execute()
+        return response.data[0] if response.data else None
+
     def create_profile(self, user_id: str, email: str, name: str, location: str, role: str = "employee") -> Dict[str, Any]:
         """Create a new user profile."""
         response = self.client.table("profiles").insert({
@@ -28,6 +33,11 @@ class SupabaseDB:
             "location": location,
             "role": role,
         }).execute()
+        return response.data[0] if response.data else None
+
+    def update_profile_location(self, user_id: str, location: str) -> Optional[Dict[str, Any]]:
+        """Update only the location field for an existing profile."""
+        response = self.client.table("profiles").update({"location": location}).eq("id", user_id).execute()
         return response.data[0] if response.data else None
 
     def get_conversations(self, user_id: str, limit: int = 10) -> List[Dict[str, Any]]:

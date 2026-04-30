@@ -1,78 +1,52 @@
-from fastapi import APIRouter, HTTPException, Request
-import os
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
 from backend.services.db import db
+from backend.dependencies import get_current_user
+import os
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
 ALLOWED_EMAIL_DOMAIN = os.getenv("ALLOWED_EMAIL_DOMAIN", "habuild.in")
 
 
-@router.post("/callback")
-async def auth_callback(request: Request):
-    """
-    Handle OAuth callback from Supabase.
-    This would be called after user authenticates with Google.
-    """
-    try:
-        data = await request.json()
-        user_id = data.get("user_id")
-        email = data.get("email")
-        name = data.get("name", "")
+class CompleteProfileRequest(BaseModel):
+    location: str
 
-        # Verify email domain
-        if not email.endswith(f"@{ALLOWED_EMAIL_DOMAIN}"):
-            raise HTTPException(status_code=403, detail="Email domain not allowed")
 
-        # Check if profile exists
-        profile = db.get_profile_by_email(email)
-
-        if not profile:
-            raise HTTPException(
-                status_code=404,
-                detail="Profile not found. Please complete onboarding."
-            )
-
-        return {
-            "id": profile["id"],
-            "name": profile["name"],
-            "email": profile["email"],
-            "location": profile["location"],
-            "role": profile["role"]
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@router.get("/me")
+async def get_my_profile(current_user: dict = Depends(get_current_user)):
+    """Return the authenticated user's profile. Returns 404 if profile doesn't exist yet."""
+    profile = db.get_profile_by_id(current_user["id"])
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return profile
 
 
 @router.post("/complete-profile")
 async def complete_profile(
-    user_id: str,
-    email: str,
-    name: str,
-    location: str
+    body: CompleteProfileRequest,
+    current_user: dict = Depends(get_current_user),
 ):
     """
-    Complete profile after first login (location selection).
+    Create or update the user's profile with their chosen location.
+    Called once after first Google login to set the office location.
     """
-    try:
-        # Verify email domain
-        if not email.endswith(f"@{ALLOWED_EMAIL_DOMAIN}"):
-            raise HTTPException(status_code=403, detail="Email domain not allowed")
+    if not current_user["email"].endswith(f"@{ALLOWED_EMAIL_DOMAIN}"):
+        raise HTTPException(status_code=403, detail="Email domain not allowed")
 
-        # Create profile
+    existing = db.get_profile_by_id(current_user["id"])
+
+    if existing:
+        profile = db.update_profile_location(
+            user_id=current_user["id"],
+            location=body.location,
+        )
+    else:
         profile = db.create_profile(
-            user_id=user_id,
-            email=email,
-            name=name,
-            location=location,
-            role="employee"
+            user_id=current_user["id"],
+            email=current_user["email"],
+            name=current_user["name"],
+            location=body.location,
+            role="employee",
         )
 
-        return {"profile": profile}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return profile

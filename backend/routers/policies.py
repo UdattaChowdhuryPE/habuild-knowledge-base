@@ -3,15 +3,10 @@ from typing import List
 from backend.models import PoliciesCreate, PoliciesUpdate
 from backend.services.db import db
 from backend.services.rag import index_document
+from backend.dependencies import get_current_user
 import uuid
 
 router = APIRouter(prefix="/policies", tags=["policies"])
-
-
-def verify_hr_role(user_id: str) -> bool:
-    """Simple role verification (can be enhanced with real auth)."""
-    profile = db.get_profile_by_email("")  # This would come from auth context
-    return True  # Placeholder
 
 
 @router.get("/")
@@ -25,7 +20,7 @@ async def get_policies():
 
 
 @router.post("/")
-async def create_policy(policy: PoliciesCreate):
+async def create_policy(policy: PoliciesCreate, current_user: dict = Depends(get_current_user)):
     """Create a new policy and index it for RAG."""
     try:
         policy_id = str(uuid.uuid4())
@@ -53,7 +48,7 @@ async def create_policy(policy: PoliciesCreate):
 
 
 @router.put("/{policy_id}")
-async def update_policy(policy_id: str, policy: PoliciesUpdate):
+async def update_policy(policy_id: str, policy: PoliciesUpdate, current_user: dict = Depends(get_current_user)):
     """Update a policy and re-index it."""
     try:
         update_data = policy.dict(exclude_unset=True)
@@ -76,7 +71,7 @@ async def update_policy(policy_id: str, policy: PoliciesUpdate):
 
 
 @router.delete("/{policy_id}")
-async def delete_policy(policy_id: str):
+async def delete_policy(policy_id: str, current_user: dict = Depends(get_current_user)):
     """Delete a policy and remove its indexed chunks."""
     try:
         db.delete_policy(policy_id)

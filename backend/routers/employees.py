@@ -1,35 +1,18 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 import io
 import pandas as pd
 from backend.services.db import db
+from backend.dependencies import get_current_user
 
 router = APIRouter(prefix="/employees", tags=["employees"])
 
 
-@router.post("/verify")
-async def verify_employee(email: str):
-    """Verify an employee by email."""
-    try:
-        profile = db.get_profile_by_email(email)
-
-        if not profile:
-            raise HTTPException(status_code=404, detail="Employee not found")
-
-        return {
-            "id": profile["id"],
-            "name": profile["name"],
-            "email": profile["email"],
-            "location": profile["location"],
-            "role": profile["role"]
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.post("/upload")
-async def upload_employees(file: UploadFile = File(...), location: str = ""):
+async def upload_employees(
+    file: UploadFile = File(...),
+    location: str = "",
+    current_user: dict = Depends(get_current_user)
+):
     """Upload employee list from CSV/Excel."""
     try:
         content = await file.read()

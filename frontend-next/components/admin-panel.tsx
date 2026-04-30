@@ -10,7 +10,11 @@ const LOCATIONS = ["Bangalore", "Gurgaon", "Nagpur"]
 const POLICY_CATEGORIES = ["Leave & Attendance", "Compensation & Benefits", "Compliance & Legal", "Code of Conduct", "Recruitment & Onboarding", "Performance & Development", "Health & Safety", "Remote Work", "Other"]
 const DOC_CATEGORIES = ["Health Insurance", "Claims & Reimbursement", "Onboarding", "Payroll & Tax", "Compliance", "General"]
 
-export function AdminPanel() {
+interface AdminPanelProps {
+  token?: string
+}
+
+export function AdminPanel({ token }: AdminPanelProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>("policies")
 
   return (
@@ -43,9 +47,9 @@ export function AdminPanel() {
           </div>
         </div>
 
-        {activeTab === "policies" && <PoliciesTab />}
-        {activeTab === "employees" && <EmployeesTab />}
-        {activeTab === "documents" && <DocumentsTab />}
+        {activeTab === "policies" && <PoliciesTab token={token} />}
+        {activeTab === "employees" && <EmployeesTab token={token} />}
+        {activeTab === "documents" && <DocumentsTab token={token} />}
       </div>
     </div>
   )
@@ -84,7 +88,7 @@ function LocationPills({ selected, onChange }: { selected: string[]; onChange: (
   )
 }
 
-function PoliciesTab() {
+function PoliciesTab({ token }: { token?: string }) {
   const [policies, setPolicies] = useState<Policy[]>([])
   const [loading, setLoading] = useState(true)
   const [title, setTitle] = useState("")
@@ -101,10 +105,11 @@ function PoliciesTab() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title || !content || locations.length === 0) { setError("Please fill all fields and select at least one location"); return }
+    if (!token) { setError("Not authenticated"); return }
     setError("")
     setSubmitting(true)
     try {
-      await createPolicy({ title, category, content, locations })
+      await createPolicy({ title, category, content, locations }, token)
       const d = await getPolicies()
       setPolicies(d.policies)
       setTitle(""); setContent(""); setLocations([])
@@ -116,8 +121,9 @@ function PoliciesTab() {
   }
 
   const handleDelete = async (id: string) => {
+    if (!token) return
     try {
-      await deletePolicy(id)
+      await deletePolicy(id, token)
       setPolicies((p) => p.filter((x) => x.id !== id))
     } catch (e) { console.error(e) }
   }
@@ -186,7 +192,7 @@ function PoliciesTab() {
   )
 }
 
-function EmployeesTab() {
+function EmployeesTab({ token }: { token?: string }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
   const [location, setLocation] = useState(LOCATIONS[0])
@@ -194,10 +200,10 @@ function EmployeesTab() {
   const [result, setResult] = useState("")
 
   const handleUpload = async () => {
-    if (!file) return
+    if (!file || !token) return
     setUploading(true)
     try {
-      const res = await uploadEmployees(file, location)
+      const res = await uploadEmployees(file, location, token)
       setResult(`Uploaded ${res.count} employees successfully`)
       setFile(null)
       if (fileRef.current) fileRef.current.value = ""
@@ -255,7 +261,7 @@ function EmployeesTab() {
   )
 }
 
-function DocumentsTab() {
+function DocumentsTab({ token }: { token?: string }) {
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
   const [title, setTitle] = useState("")
@@ -273,10 +279,11 @@ function DocumentsTab() {
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title || !file || locations.length === 0) { setError("Please fill all fields and select at least one location"); return }
+    if (!token) { setError("Not authenticated"); return }
     setError("")
     setSubmitting(true)
     try {
-      await uploadDocument(file, title, category, locations)
+      await uploadDocument(file, title, category, locations, token)
       const d = await getDocuments()
       setDocuments(d.documents)
       setTitle(""); setLocations([]); setFile(null)
@@ -289,8 +296,9 @@ function DocumentsTab() {
   }
 
   const handleDelete = async (id: string) => {
+    if (!token) return
     try {
-      await deleteDocument(id)
+      await deleteDocument(id, token)
       setDocuments((d) => d.filter((x) => x.id !== id))
     } catch (e) { console.error(e) }
   }

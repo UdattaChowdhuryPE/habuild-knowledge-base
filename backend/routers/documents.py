@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
 from typing import List, Optional
 import uuid
 from io import BytesIO
@@ -6,6 +6,7 @@ import PyPDF2
 from docx import Document
 from backend.services.db import db
 from backend.services.rag import index_document
+from backend.dependencies import get_current_user
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -63,7 +64,8 @@ async def upload_document(
     file: UploadFile = File(...),
     title: str = Form(...),
     category: str = Form(...),
-    locations: str = Form(...)  # JSON string or comma-separated
+    locations: str = Form(...),  # JSON string or comma-separated
+    current_user: dict = Depends(get_current_user)
 ):
     """Upload a document and index it for RAG."""
     try:
@@ -117,7 +119,7 @@ async def upload_document(
 
 
 @router.delete("/{document_id}")
-async def delete_document(document_id: str):
+async def delete_document(document_id: str, current_user: dict = Depends(get_current_user)):
     """Delete a document and remove its indexed chunks."""
     try:
         # Get document to find file path

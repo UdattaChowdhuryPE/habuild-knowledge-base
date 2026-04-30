@@ -14,9 +14,10 @@ const fileIcon = (fileName: string) => {
 
 interface DocumentsViewProps {
   location: string
+  token?: string
 }
 
-export function DocumentsView({ location }: DocumentsViewProps) {
+export function DocumentsView({ location, token }: DocumentsViewProps) {
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
