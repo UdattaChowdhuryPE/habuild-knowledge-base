@@ -54,3 +54,12 @@ def is_authenticated() -> bool:
 def is_hr() -> bool:
     """Check if user has HR role."""
     return st.session_state.role == "hr"
+
+
+def get_initials(name: str) -> str:
+    """Get initials from name (e.g., 'Udatta Chowdhury' -> 'UC')."""
+    if not name:
+        return "?"
+    parts = name.strip().split()
+    initials = "".join(part[0].upper() for part in parts if part)
+    return initials[:2]

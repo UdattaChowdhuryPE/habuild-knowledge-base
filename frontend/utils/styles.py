@@ -190,7 +190,25 @@ def inject_global_styles():
     }
     .hb-page-header h1 { color: #FFFFFF !important; font-size: 1.4rem !important; font-weight: 800 !important; margin: 0; }
     .hb-page-header p { color: rgba(255,255,255,0.65) !important; font-size: 0.85rem !important; margin: 0; }
-    .hb-page-header-icon { font-size: 2rem; flex-shrink: 0; }
+    .hb-page-header-icon {
+        width: 48px; height: 48px; background: rgba(0,0,0,0.15);
+        border-radius: 12px; display: flex; align-items: center; justify-content: center;
+        font-size: 1.75rem; flex-shrink: 0;
+    }
+
+    .hb-welcome-card {
+        background: linear-gradient(135deg, #003E50 0%, #005068 50%, #3FA68E 100%);
+        border-radius: 16px; padding: 2rem; color: #FFFFFF; text-align: center;
+        margin-bottom: 1.75rem;
+    }
+    .hb-welcome-card h2 { color: #FFFFFF !important; font-size: 1.5rem; font-weight: 800; margin-bottom: 0.5rem; }
+    .hb-welcome-card p { color: rgba(255,255,255,0.8) !important; font-size: 0.95rem; margin-bottom: 1rem; }
+    .hb-welcome-icon { font-size: 3rem; margin-bottom: 1rem; }
+    .hb-welcome-pills { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center; }
+    .hb-welcome-pill {
+        background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 20px; padding: 0.3rem 0.8rem; font-size: 0.8rem; color: rgba(255,255,255,0.9);
+    }
 
     .hb-section-header {
         display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;
@@ -215,9 +233,16 @@ def inject_global_styles():
     .hb-sidebar-user {
         background: rgba(63,166,142,0.1); border: 1px solid rgba(63,166,142,0.2);
         border-radius: 10px; padding: 0.75rem; margin-bottom: 1rem;
+        display: flex; align-items: center; gap: 0.75rem;
     }
-    .hb-sidebar-user .user-name { font-weight: 700; color: #FFFFFF !important; font-size: 0.9rem; }
-    .hb-sidebar-user .user-meta { color: rgba(255,255,255,0.55) !important; font-size: 0.775rem; line-height: 1.6; }
+    .hb-sidebar-user-avatar {
+        width: 40px; height: 40px; background: #3FA68E; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        color: #FFFFFF; font-weight: 700; font-size: 0.875rem;
+    }
+    .hb-sidebar-user-info { flex: 1; }
+    .hb-sidebar-user .user-name { font-weight: 700; color: #FFFFFF !important; font-size: 0.9rem; margin: 0; }
+    .hb-sidebar-user .user-meta { color: rgba(255,255,255,0.55) !important; font-size: 0.775rem; line-height: 1.6; margin: 0.25rem 0 0 0; }
 
     .hb-doc-card {
         background: #FFFFFF; border: 1.5px solid #E0F2EF; border-radius: 10px;
@@ -228,6 +253,39 @@ def inject_global_styles():
     .hb-doc-card .doc-meta { color: #5A7A7A; font-size: 0.775rem; margin-bottom: 0.5rem; }
     .hb-doc-card a { color: #3FA68E; font-size: 0.825rem; font-weight: 600; text-decoration: none; }
     .hb-doc-card a:hover { text-decoration: underline; }
+
+    .hb-doc-card-v2 {
+        background: #FFFFFF; border: 1.5px solid #E0F2EF; border-radius: 12px;
+        padding: 1.25rem; transition: all 0.2s ease; position: relative; min-height: 280px;
+        display: flex; flex-direction: column;
+    }
+    .hb-doc-card-v2:hover { border-color: #3FA68E; box-shadow: 0 4px 16px rgba(63,166,142,0.15); transform: translateY(-2px); }
+    .hb-doc-card-v2-badge {
+        position: absolute; top: 1rem; right: 1rem;
+        background: #F0F9F8; color: #2D8A74; border: 1px solid rgba(63,166,142,0.3);
+        border-radius: 20px; padding: 0.3rem 0.75rem; font-size: 0.7rem; font-weight: 700;
+    }
+    .hb-doc-card-v2-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+    .hb-doc-card-v2-title { font-weight: 700; color: #003E50; font-size: 0.95rem; margin-bottom: 0.5rem; line-height: 1.4; }
+    .hb-doc-card-v2-meta { color: #5A7A7A; font-size: 0.8rem; margin-bottom: auto; }
+    .hb-doc-card-v2-btn {
+        margin-top: 1rem; padding: 0.5rem 1rem; border: 1.5px solid #3FA68E; background: transparent;
+        color: #3FA68E; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer;
+        transition: all 0.2s ease; text-decoration: none; display: inline-block; text-align: center;
+    }
+    .hb-doc-card-v2-btn:hover { background: #F0F9F8; box-shadow: 0 2px 8px rgba(63,166,142,0.2); }
+
+    .hb-loc-pill-group { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .hb-loc-pill {
+        padding: 0.5rem 1rem; border: 1.5px solid #D6E8E6; background: #FFFFFF;
+        border-radius: 20px; font-size: 0.85rem; font-weight: 500; color: #003E50;
+        cursor: pointer; transition: all 0.2s ease;
+    }
+    .hb-loc-pill:hover { border-color: #3FA68E; background: #F0F9F8; }
+    .hb-loc-pill-active {
+        background: linear-gradient(135deg, #3FA68E 0%, #2D8A74 100%) !important;
+        color: #FFFFFF !important; border-color: #2D8A74 !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -269,14 +327,33 @@ def sidebar_brand() -> None:
     """, unsafe_allow_html=True)
 
 
-def sidebar_user_card(name: str, location: str, role: str) -> None:
-    """Render a user info card in the sidebar."""
+def sidebar_user_card(name: str, location: str, role: str, initials: str = "") -> None:
+    """Render a user info card in the sidebar with avatar circle."""
+    if not initials and name:
+        initials = name[0].upper() if name else "?"
+    role_label = f"* {role.upper()}"
     st.markdown(f"""
     <div class="hb-sidebar-user">
-        <div class="user-name">{name}</div>
-        <div class="user-meta">
-            📍 {location}<br>
-            🎭 {role.upper()}
+        <div class="hb-sidebar-user-avatar">{initials}</div>
+        <div class="hb-sidebar-user-info">
+            <div class="user-name">{name}</div>
+            <div class="user-meta">{role_label}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def welcome_card(name: str) -> None:
+    """Render a personalized welcome card for the chat page."""
+    pills = ["Leave Policies", "Benefits", "Compliance", "Onboarding"]
+    pills_html = "".join(f'<span class="hb-welcome-pill">{pill}</span>' for pill in pills)
+    st.markdown(f"""
+    <div class="hb-welcome-card">
+        <div class="hb-welcome-icon">🏃‍♂️</div>
+        <h2>Welcome back, {name}!</h2>
+        <p>Ask me anything about HR policies, leave, benefits, compliance, and more.</p>
+        <div class="hb-welcome-pills">
+            {pills_html}
         </div>
     </div>
     """, unsafe_allow_html=True)

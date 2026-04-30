@@ -1,8 +1,8 @@
 import streamlit as st
 import os
-from frontend.utils.auth import init_session_state, is_authenticated, is_hr, logout, LOCATIONS
+from frontend.utils.auth import init_session_state, is_authenticated, is_hr, logout, LOCATIONS, get_initials
 from frontend.utils.api import client
-from frontend.utils.styles import inject_global_styles, page_header, sidebar_brand, sidebar_user_card
+from frontend.utils.styles import inject_global_styles, page_header, sidebar_brand, sidebar_user_card, welcome_card
 
 # Page configuration
 st.set_page_config(
@@ -22,7 +22,7 @@ with st.sidebar:
     sidebar_brand()
 
     if is_authenticated():
-        sidebar_user_card(st.session_state.name, st.session_state.location, st.session_state.role)
+        sidebar_user_card(st.session_state.name, st.session_state.location, st.session_state.role, get_initials(st.session_state.name))
 
         col1, col2 = st.columns(2)
         with col1:
@@ -66,8 +66,8 @@ if not is_authenticated():
         <p class="hb-login-subtitle">Use your Habuild email address to access HR resources</p>
         """, unsafe_allow_html=True)
 
-        email = st.text_input("Email", placeholder="your.email@habuild.in", label_visibility="collapsed")
-        st.markdown('<div style="height:4px"></div>', unsafe_allow_html=True)
+        email = st.text_input("Email Address", placeholder="your.email@habuild.in")
+        st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
         location = st.selectbox("Office Location", options=LOCATIONS)
 
         if st.button("Sign In →", type="primary", use_container_width=True):
@@ -97,7 +97,7 @@ if not is_authenticated():
 
 else:
     # Chat interface
-    page_header("💬", "HR Policy Assistant", "Ask me anything about Habuild's HR policies")
+    welcome_card(st.session_state.name)
 
     # Initialize conversation if needed
     if not st.session_state.conversation_id:

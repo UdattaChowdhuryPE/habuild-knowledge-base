@@ -1,5 +1,5 @@
 import streamlit as st
-from frontend.utils.auth import init_session_state, is_authenticated, is_hr, logout, LOCATIONS
+from frontend.utils.auth import init_session_state, is_authenticated, is_hr, logout, LOCATIONS, get_initials
 from frontend.utils.api import client
 from frontend.utils.styles import inject_global_styles, page_header, section_header, sidebar_brand, sidebar_user_card
 import pandas as pd
@@ -21,7 +21,7 @@ if not is_hr():
 # Sidebar
 with st.sidebar:
     sidebar_brand()
-    sidebar_user_card(st.session_state.name, "", "HR Admin")
+    sidebar_user_card(st.session_state.name, "", "HR Admin", get_initials(st.session_state.name))
 
     if st.button("← Back to Chat", use_container_width=True):
         st.switch_page("app.py")
@@ -75,6 +75,9 @@ with tab1:
     section_header("Add New Policy")
     st.markdown('<div class="hb-card">', unsafe_allow_html=True)
 
+    if "policy_locations" not in st.session_state:
+        st.session_state.policy_locations = []
+
     with st.form("add_policy_form"):
         title = st.text_input("Policy Title")
         category = st.selectbox(
@@ -84,12 +87,11 @@ with tab1:
              "Health & Safety", "Remote Work", "Other"]
         )
         content = st.text_area("Policy Content", height=300)
-        locations = st.multiselect("Applicable Locations", options=LOCATIONS)
 
         submit = st.form_submit_button("Create Policy")
 
         if submit:
-            if not title or not content or not locations:
+            if not title or not content or not st.session_state.policy_locations:
                 st.error("Please fill in all required fields")
             else:
                 try:
@@ -97,14 +99,33 @@ with tab1:
                         title=title,
                         category=category,
                         content=content,
-                        locations=locations
+                        locations=st.session_state.policy_locations
                     )
                     st.success("Policy created successfully!")
+                    st.session_state.policy_locations = []
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error creating policy: {str(e)}")
 
     st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('<div style="height:1rem"></div>', unsafe_allow_html=True)
+    st.markdown('<p style="font-weight:600;color:#003E50;font-size:0.9rem">Applicable Locations</p>', unsafe_allow_html=True)
+    cols = st.columns(len(LOCATIONS))
+    for i, loc in enumerate(LOCATIONS):
+        with cols[i]:
+            is_active = loc in st.session_state.policy_locations
+            if st.button(
+                loc,
+                key=f"pol_loc_{loc}",
+                type="primary" if is_active else "secondary",
+                use_container_width=True
+            ):
+                if is_active:
+                    st.session_state.policy_locations.remove(loc)
+                else:
+                    st.session_state.policy_locations.append(loc)
+                st.rerun()
 
 
 # ========== TAB 2: EMPLOYEES ==========
@@ -117,6 +138,9 @@ with tab2:
     <strong style="color:#003E50">Required columns:</strong> Name, Email, Location, Role</p>
     </div>
     """, unsafe_allow_html=True)
+
+    st.markdown('<div style="height:1.5rem"></div>', unsafe_allow_html=True)
+    section_header("Upload Employee List")
 
     uploaded_file = st.file_uploader("Choose a file", type=["csv", "xlsx", "xls"])
 
@@ -193,6 +217,9 @@ with tab3:
     section_header("Upload New Document")
     st.markdown('<div class="hb-card">', unsafe_allow_html=True)
 
+    if "doc_locations" not in st.session_state:
+        st.session_state.doc_locations = []
+
     with st.form("upload_doc_form"):
         title = st.text_input("Document Title")
         category = st.selectbox(
@@ -200,13 +227,12 @@ with tab3:
             ["Health Insurance", "Claims & Reimbursement", "Onboarding",
              "Payroll & Tax", "Compliance", "General"]
         )
-        locations = st.multiselect("Applicable Locations", options=LOCATIONS)
         uploaded_file = st.file_uploader("Choose file", type=["pdf", "docx", "doc", "txt"])
 
         submit = st.form_submit_button("Upload Document")
 
         if submit:
-            if not title or not locations or not uploaded_file:
+            if not title or not st.session_state.doc_locations or not uploaded_file:
                 st.error("Please fill in all required fields")
             else:
                 try:
@@ -222,9 +248,10 @@ with tab3:
                             file_path=tmp_path,
                             title=title,
                             category=category,
-                            locations=locations
+                            locations=st.session_state.doc_locations
                         )
                         st.success("Document uploaded successfully!")
+                        st.session_state.doc_locations = []
                         st.rerun()
                     finally:
                         os.unlink(tmp_path)
@@ -233,3 +260,21 @@ with tab3:
                     st.error(f"Error uploading document: {str(e)}")
 
     st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('<div style="height:1rem"></div>', unsafe_allow_html=True)
+    st.markdown('<p style="font-weight:600;color:#003E50;font-size:0.9rem">Applicable Locations</p>', unsafe_allow_html=True)
+    cols = st.columns(len(LOCATIONS))
+    for i, loc in enumerate(LOCATIONS):
+        with cols[i]:
+            is_active = loc in st.session_state.doc_locations
+            if st.button(
+                loc,
+                key=f"doc_loc_{loc}",
+                type="primary" if is_active else "secondary",
+                use_container_width=True
+            ):
+                if is_active:
+                    st.session_state.doc_locations.remove(loc)
+                else:
+                    st.session_state.doc_locations.append(loc)
+                st.rerun()
