@@ -25,12 +25,14 @@ async def create_policy(policy: PoliciesCreate, current_user: dict = Depends(get
     try:
         policy_id = str(uuid.uuid4())
 
+        normalized_locations = [loc.strip().title() for loc in policy.locations if loc.strip()]
+
         # Create policy in database
         new_policy = db.create_policy(
             title=policy.title,
             category=policy.category,
             content=policy.content,
-            locations=policy.locations
+            locations=normalized_locations
         )
 
         # Index the policy content for RAG
@@ -39,7 +41,7 @@ async def create_policy(policy: PoliciesCreate, current_user: dict = Depends(get
             source_type="policy",
             source_title=policy.title,
             text=policy.content,
-            locations=policy.locations
+            locations=normalized_locations
         )
 
         return {"policy": new_policy}
@@ -57,12 +59,14 @@ async def update_policy(policy_id: str, policy: PoliciesUpdate, current_user: di
 
         # Re-index if content changed
         if "content" in update_data:
+            locations = update_data.get("locations", [])
+            normalized_locations = [loc.strip().title() for loc in locations if loc.strip()] if locations else []
             index_document(
                 source_id=policy_id,
                 source_type="policy",
                 source_title=update_data.get("title", ""),
                 text=update_data["content"],
-                locations=update_data.get("locations", [])
+                locations=normalized_locations
             )
 
         return {"policy": updated}

@@ -53,7 +53,8 @@ def extract_text_from_file(file: UploadFile, file_bytes: bytes) -> str:
 async def get_documents(location: Optional[str] = None):
     """Get documents, optionally filtered by location."""
     try:
-        documents = db.get_documents(location=location)
+        normalized_location = location.strip().title() if location else None
+        documents = db.get_documents(location=normalized_location)
         return {"documents": documents}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -64,16 +65,12 @@ async def upload_document(
     file: UploadFile = File(...),
     title: str = Form(...),
     category: str = Form(...),
-    locations: str = Form(...),  # JSON string or comma-separated
+    locations: List[str] = Form(...),
     current_user: dict = Depends(get_current_user)
 ):
     """Upload a document and index it for RAG."""
     try:
-        # Parse locations
-        if isinstance(locations, str):
-            location_list = [loc.strip() for loc in locations.split(",")]
-        else:
-            location_list = locations
+        location_list = [loc.strip().title() for loc in locations if loc.strip()]
 
         # Read file
         file_bytes = await file.read()

@@ -14,7 +14,8 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 async def start_conversation(location: str, current_user: dict = Depends(get_current_user)):
     """Start a new conversation."""
     try:
-        conversation = db.create_conversation(current_user["id"], location)
+        normalized_location = location.strip().title()
+        conversation = db.create_conversation(current_user["id"], normalized_location)
         return {"conversation_id": conversation["id"]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -26,18 +27,20 @@ async def send_message(request: ChatRequest, current_user: dict = Depends(get_cu
     Send a message and get a streaming response from Claude.
     """
     try:
-        # Store user message
-        db.add_message(request.conversation_id, "user", request.question)
-
-        # Get conversation history (last 10 messages)
+        # Fetch history before saving the new message so the current question
+        # isn't duplicated (llm.py appends it again when building messages)
         history = db.get_conversation_messages(request.conversation_id, limit=10)
         conversation_history = [
             {"role": msg["role"], "content": msg["content"]}
             for msg in history
         ]
 
+        # Store user message after fetching history
+        db.add_message(request.conversation_id, "user", request.question)
+
         # Get relevant context from RAG
-        context = get_relevant_context(request.question, request.location, top_k=5)
+        normalized_location = request.location.strip().title()
+        context = get_relevant_context(request.question, normalized_location, top_k=5)
 
         # Stream response from Claude
         def response_generator():

@@ -33,19 +33,20 @@ async def complete_profile(
     if not current_user["email"].endswith(f"@{ALLOWED_EMAIL_DOMAIN}"):
         raise HTTPException(status_code=403, detail="Email domain not allowed")
 
+    normalized_location = body.location.strip().title()
     existing = db.get_profile_by_id(current_user["id"])
 
     if existing:
         profile = db.update_profile_location(
             user_id=current_user["id"],
-            location=body.location,
+            location=normalized_location,
         )
     else:
         profile = db.create_profile(
             user_id=current_user["id"],
             email=current_user["email"],
             name=current_user["name"],
-            location=body.location,
+            location=normalized_location,
             role="employee",
         )
 
