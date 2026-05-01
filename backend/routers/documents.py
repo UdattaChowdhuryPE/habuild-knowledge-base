@@ -6,7 +6,7 @@ import PyPDF2
 from docx import Document
 from backend.services.db import db
 from backend.services.rag import index_document
-from backend.dependencies import get_current_user
+from backend.dependencies import get_current_user, require_hr_role
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -50,7 +50,7 @@ def extract_text_from_file(file: UploadFile, file_bytes: bytes) -> str:
 
 
 @router.get("/")
-async def get_documents(location: Optional[str] = None):
+async def get_documents(location: Optional[str] = None, current_user: dict = Depends(get_current_user)):
     """Get documents, optionally filtered by location."""
     try:
         normalized_location = location.strip().title() if location else None
@@ -66,7 +66,7 @@ async def upload_document(
     title: str = Form(...),
     category: str = Form(...),
     locations: List[str] = Form(...),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_hr_role)
 ):
     """Upload a document and index it for RAG."""
     try:
@@ -116,7 +116,7 @@ async def upload_document(
 
 
 @router.delete("/{document_id}")
-async def delete_document(document_id: str, current_user: dict = Depends(get_current_user)):
+async def delete_document(document_id: str, current_user: dict = Depends(require_hr_role)):
     """Delete a document and remove its indexed chunks."""
     try:
         # Get document to find file path

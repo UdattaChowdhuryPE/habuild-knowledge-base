@@ -35,3 +35,11 @@ async def get_current_user(
         "email": email,
         "name": user.user_metadata.get("full_name", email.split("@")[0]),
     }
+
+
+async def require_hr_role(current_user: dict = Security(get_current_user)) -> dict:
+    """Ensure the current user has 'hr' role. Raises 403 otherwise."""
+    profile = db.get_profile_by_id(current_user["id"])
+    if not profile or profile.get("role") != "hr":
+        raise HTTPException(status_code=403, detail="HR role required")
+    return current_user

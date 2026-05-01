@@ -27,6 +27,11 @@ async def send_message(request: ChatRequest, current_user: dict = Depends(get_cu
     Send a message and get a streaming response from Claude.
     """
     try:
+        # Verify conversation belongs to current user
+        conversation = db.get_conversation(request.conversation_id)
+        if not conversation or conversation["user_id"] != current_user["id"]:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+        
         # Fetch history before saving the new message so the current question
         # isn't duplicated (llm.py appends it again when building messages)
         history = db.get_conversation_messages(request.conversation_id, limit=10)
@@ -64,10 +69,15 @@ async def send_message(request: ChatRequest, current_user: dict = Depends(get_cu
 
 
 @router.get("/history/{conversation_id}")
-async def get_conversation_history(conversation_id: str, limit: int = 20):
+async def get_conversation_history(conversation_id: str, limit: int = 20, current_user: dict = Depends(get_current_user)):
     """Get message history for a conversation."""
     try:
+        conversation = db.get_conversation(conversation_id)
+        if not conversation or conversation["user_id"] != current_user["id"]:
+            raise HTTPException(status_code=404, detail="Conversation not found")
         messages = db.get_conversation_messages(conversation_id, limit=limit)
         return {"messages": messages}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

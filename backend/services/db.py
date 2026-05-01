@@ -53,6 +53,11 @@ class SupabaseDB:
         }).execute()
         return response.data[0] if response.data else None
 
+    def get_conversation(self, conversation_id: str) -> Optional[Dict[str, Any]]:
+        """Get a single conversation by ID."""
+        response = self.client.table("conversations").select("*").eq("id", conversation_id).limit(1).execute()
+        return response.data[0] if response.data else None
+
     def get_conversation_messages(self, conversation_id: str, limit: int = 10) -> List[Dict[str, Any]]:
         """Get messages for a conversation."""
         response = self.client.table("messages").select("*").eq("conversation_id", conversation_id).order("created_at", desc=False).limit(limit).execute()

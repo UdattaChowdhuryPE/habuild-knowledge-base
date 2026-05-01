@@ -3,14 +3,14 @@ from typing import List
 from backend.models import PoliciesCreate, PoliciesUpdate
 from backend.services.db import db
 from backend.services.rag import index_document
-from backend.dependencies import get_current_user
+from backend.dependencies import get_current_user, require_hr_role
 import uuid
 
 router = APIRouter(prefix="/policies", tags=["policies"])
 
 
 @router.get("/")
-async def get_policies():
+async def get_policies(current_user: dict = Depends(get_current_user)):
     """Get all policies."""
     try:
         policies = db.get_policies()
@@ -20,7 +20,7 @@ async def get_policies():
 
 
 @router.post("/")
-async def create_policy(policy: PoliciesCreate, current_user: dict = Depends(get_current_user)):
+async def create_policy(policy: PoliciesCreate, current_user: dict = Depends(require_hr_role)):
     """Create a new policy and index it for RAG."""
     try:
         policy_id = str(uuid.uuid4())
@@ -50,7 +50,7 @@ async def create_policy(policy: PoliciesCreate, current_user: dict = Depends(get
 
 
 @router.put("/{policy_id}")
-async def update_policy(policy_id: str, policy: PoliciesUpdate, current_user: dict = Depends(get_current_user)):
+async def update_policy(policy_id: str, policy: PoliciesUpdate, current_user: dict = Depends(require_hr_role)):
     """Update a policy and re-index it."""
     try:
         update_data = policy.dict(exclude_unset=True)
@@ -75,7 +75,7 @@ async def update_policy(policy_id: str, policy: PoliciesUpdate, current_user: di
 
 
 @router.delete("/{policy_id}")
-async def delete_policy(policy_id: str, current_user: dict = Depends(get_current_user)):
+async def delete_policy(policy_id: str, current_user: dict = Depends(require_hr_role)):
     """Delete a policy and remove its indexed chunks."""
     try:
         db.delete_policy(policy_id)
