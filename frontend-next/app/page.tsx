@@ -68,9 +68,10 @@ export default function HabuildHRPortal() {
     }
 
     const email = session.user?.email ?? ""
-    if (!email.endsWith("@habuild.in")) {
+    const isAllowed = email.endsWith("@habuild.in") || email.endsWith(".habuild@gmail.com")
+    if (!isAllowed) {
       await supabase.auth.signOut()
-      setAuthError("Only @habuild.in accounts are allowed")
+      setAuthError("Only @habuild.in or .habuild@gmail.com accounts are allowed")
       setAuthState("unauthenticated")
       setSession(null)
       setUser(null)

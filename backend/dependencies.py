@@ -4,7 +4,10 @@ from backend.services.db import db
 import os
 
 security = HTTPBearer()
-ALLOWED_EMAIL_DOMAIN = os.getenv("ALLOWED_EMAIL_DOMAIN", "habuild.in")
+
+
+def is_allowed_email(email: str) -> bool:
+    return email.endswith("@habuild.in") or email.endswith(".habuild@gmail.com")
 
 
 async def get_current_user(
@@ -24,7 +27,7 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     email = user.email or ""
-    if not email.endswith(f"@{ALLOWED_EMAIL_DOMAIN}"):
+    if not is_allowed_email(email):
         raise HTTPException(status_code=403, detail="Email domain not allowed")
 
     return {

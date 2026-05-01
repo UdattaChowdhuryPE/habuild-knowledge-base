@@ -17,9 +17,6 @@ export function SignInView({ error }: SignInViewProps) {
         provider: "google",
         options: {
           redirectTo: window.location.origin,
-          queryParams: {
-            hd: "habuild.in",
-          },
         },
       })
     } catch (e) {

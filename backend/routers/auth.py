@@ -1,11 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from backend.services.db import db
-from backend.dependencies import get_current_user
-import os
+from backend.dependencies import get_current_user, is_allowed_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-ALLOWED_EMAIL_DOMAIN = os.getenv("ALLOWED_EMAIL_DOMAIN", "habuild.in")
 
 
 class CompleteProfileRequest(BaseModel):
@@ -30,7 +28,7 @@ async def complete_profile(
     Create or update the user's profile with their chosen location.
     Called once after first Google login to set the office location.
     """
-    if not current_user["email"].endswith(f"@{ALLOWED_EMAIL_DOMAIN}"):
+    if not is_allowed_email(current_user["email"]):
         raise HTTPException(status_code=403, detail="Email domain not allowed")
 
     normalized_location = body.location.strip().title()
