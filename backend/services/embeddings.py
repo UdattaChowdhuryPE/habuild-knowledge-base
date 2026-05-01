@@ -1,6 +1,6 @@
 import os
 import voyageai
-from typing import List
+from typing import List, Dict, Any
 
 
 class EmbeddingsService:
@@ -35,6 +35,15 @@ class EmbeddingsService:
             return result.embeddings
         except Exception as e:
             print(f"Error embedding batch: {e}")
+            return []
+
+    def rerank(self, query: str, documents: List[str], top_k: int = 5) -> List[Dict[str, Any]]:
+        """Rerank documents by relevance to the query using Voyage's reranker."""
+        try:
+            result = self.client.rerank(query, documents, model="rerank-2", top_k=top_k)
+            return [{"index": r.index, "score": r.relevance_score} for r in result.results]
+        except Exception as e:
+            print(f"Error reranking: {e}")
             return []
 
 
