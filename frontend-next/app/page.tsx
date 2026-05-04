@@ -247,7 +247,7 @@ export default function HabuildHRPortal() {
           </div>
         )}
 
-        {authState === "authenticated" && user && currentPage === "admin" && <AdminPanel token={session?.access_token} />}
+        {authState === "authenticated" && user?.role === "hr" && currentPage === "admin" && <AdminPanel token={session?.access_token} />}
         {authState === "authenticated" && user && currentPage === "documents" && <DocumentsView location={user.location} token={session?.access_token} />}
       </main>
     </div>

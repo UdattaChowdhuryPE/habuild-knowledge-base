@@ -44,7 +44,9 @@ export function Sidebar({ currentPage, onPageChange, isSignedIn, user, onSignOut
       {/* Nav */}
       <nav className="flex-1 p-4 pt-6">
         <div className="space-y-1">
-          {navItems.map((item) => (
+          {navItems
+            .filter((item) => item.id !== "admin" || user?.role === "hr")
+            .map((item) => (
             <button
               key={item.id}
               onClick={() => onPageChange(item.id)}
@@ -92,16 +94,6 @@ export function Sidebar({ currentPage, onPageChange, isSignedIn, user, onSignOut
               </div>
             </div>
           </div>
-
-          <button
-            onClick={() => onPageChange("app")}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-600 px-4 py-2.5 text-sm text-slate-400 transition-colors hover:bg-slate-700/50 hover:text-slate-200"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Back to Chat
-          </button>
 
           <button
             onClick={onSignOut}
