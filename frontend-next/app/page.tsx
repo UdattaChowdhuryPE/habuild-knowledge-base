@@ -165,7 +165,7 @@ export default function HabuildHRPortal() {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50">
       <Sidebar
         currentPage={currentPage}
         onPageChange={setCurrentPage}

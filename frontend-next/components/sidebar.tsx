@@ -40,7 +40,7 @@ export function Sidebar({ currentPage, onPageChange, isSignedIn, user, onSignOut
   const initials = user?.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) ?? "?"
 
   return (
-    <aside className="flex w-64 flex-shrink-0 flex-col bg-gradient-to-b from-slate-800 to-slate-900 min-h-screen">
+    <aside className="flex w-64 flex-shrink-0 flex-col bg-gradient-to-b from-slate-800 to-slate-900">
       {/* Nav */}
       <nav className="flex-1 p-4 pt-6">
         <div className="space-y-1">
