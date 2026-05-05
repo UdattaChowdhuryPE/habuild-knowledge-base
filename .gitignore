@@ -29,6 +29,14 @@ ENV/
 env.bak/
 venv.bak/
 
+# Document files (safety: prevent accidental commits of HR docs, policies, etc.)
+*.pdf
+*.docx
+*.doc
+*.csv
+*.xlsx
+*.xls
+
 # Environment variables
 .env
 .env.local

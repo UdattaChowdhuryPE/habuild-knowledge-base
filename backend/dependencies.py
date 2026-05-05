@@ -7,7 +7,9 @@ security = HTTPBearer()
 
 
 def is_allowed_email(email: str) -> bool:
-    return email.endswith("@habuild.in") or email.endswith(".habuild@gmail.com")
+    allowed_domains = os.getenv("ALLOWED_EMAIL_DOMAINS", "@habuild.in,.habuild@gmail.com")
+    domains = [d.strip() for d in allowed_domains.split(",")]
+    return any(email.endswith(domain) for domain in domains)
 
 
 async def get_current_user(
