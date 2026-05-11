@@ -13,20 +13,6 @@ class ChatResponse(BaseModel):
     response: str
 
 
-class PoliciesCreate(BaseModel):
-    title: str
-    category: str
-    content: str
-    locations: List[str]
-
-
-class PoliciesUpdate(BaseModel):
-    title: Optional[str] = None
-    category: Optional[str] = None
-    content: Optional[str] = None
-    locations: Optional[List[str]] = None
-
-
 class DocumentUpload(BaseModel):
     title: str
     category: str

@@ -95,30 +95,6 @@ class SupabaseDB:
         ).execute()
         return response.data if response.data else []
 
-    def get_policies(self) -> List[Dict[str, Any]]:
-        """Get all policies."""
-        response = self.client.table("policies").select("*").order("created_at", desc=True).execute()
-        return response.data if response.data else []
-
-    def create_policy(self, title: str, category: str, content: str, locations: List[str]) -> Dict[str, Any]:
-        """Create a new policy."""
-        response = self.client.table("policies").insert({
-            "title": title,
-            "category": category,
-            "content": content,
-            "locations": locations,
-        }).execute()
-        return response.data[0] if response.data else None
-
-    def update_policy(self, policy_id: str, **kwargs) -> Dict[str, Any]:
-        """Update a policy."""
-        response = self.client.table("policies").update(kwargs).eq("id", policy_id).execute()
-        return response.data[0] if response.data else None
-
-    def delete_policy(self, policy_id: str) -> None:
-        """Delete a policy."""
-        self.client.table("policies").delete().eq("id", policy_id).execute()
-
     def get_documents(self, location: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get documents, optionally filtered by location."""
         query = self.client.table("documents").select("*")

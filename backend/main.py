@@ -7,7 +7,7 @@ load_dotenv(Path(__file__).parent / ".env")
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.routers import chat, policies, documents, employees, auth
+from backend.routers import chat, documents, employees, auth
 
 app = FastAPI(
     title="HR Policy Assistant API",
@@ -27,7 +27,6 @@ app.add_middleware(
 
 # Include routers
 app.include_router(chat.router)
-app.include_router(policies.router)
 app.include_router(documents.router)
 app.include_router(employees.router)
 app.include_router(auth.router)

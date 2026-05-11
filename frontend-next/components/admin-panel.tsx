@@ -2,12 +2,11 @@
 
 import { useState, useEffect, useRef } from "react"
 import { cn } from "@/lib/utils"
-import { getPolicies, createPolicy, deletePolicy, getDocuments, uploadDocument, deleteDocument, uploadEmployees, type Policy, type Document } from "@/lib/api"
+import { getDocuments, uploadDocument, deleteDocument, uploadEmployees, type Document } from "@/lib/api"
 
-type AdminTab = "policies" | "employees" | "documents"
+type AdminTab = "employees" | "documents"
 
 const LOCATIONS = ["Bangalore", "Gurgaon", "Nagpur"]
-const POLICY_CATEGORIES = ["Leave & Attendance", "Compensation & Benefits", "Compliance & Legal", "Code of Conduct", "Recruitment & Onboarding", "Performance & Development", "Health & Safety", "Remote Work", "Other"]
 const DOC_CATEGORIES = ["Health Insurance", "Claims & Reimbursement", "Onboarding", "Payroll & Tax", "Compliance", "General"]
 
 interface AdminPanelProps {
@@ -15,7 +14,7 @@ interface AdminPanelProps {
 }
 
 export function AdminPanel({ token }: AdminPanelProps) {
-  const [activeTab, setActiveTab] = useState<AdminTab>("policies")
+  const [activeTab, setActiveTab] = useState<AdminTab>("employees")
 
   return (
     <div className="p-8">
@@ -32,7 +31,7 @@ export function AdminPanel({ token }: AdminPanelProps) {
         {/* Tabs */}
         <div className="mb-8 rounded-xl bg-slate-100 p-1.5">
           <div className="flex gap-1">
-            {(["policies", "employees", "documents"] as AdminTab[]).map((tab) => (
+            {(["employees", "documents"] as AdminTab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -47,7 +46,6 @@ export function AdminPanel({ token }: AdminPanelProps) {
           </div>
         </div>
 
-        {activeTab === "policies" && <PoliciesTab token={token} />}
         {activeTab === "employees" && <EmployeesTab token={token} />}
         {activeTab === "documents" && <DocumentsTab token={token} />}
       </div>
@@ -88,109 +86,6 @@ function LocationPills({ selected, onChange }: { selected: string[]; onChange: (
   )
 }
 
-function PoliciesTab({ token }: { token?: string }) {
-  const [policies, setPolicies] = useState<Policy[]>([])
-  const [loading, setLoading] = useState(true)
-  const [title, setTitle] = useState("")
-  const [category, setCategory] = useState(POLICY_CATEGORIES[0])
-  const [content, setContent] = useState("")
-  const [locations, setLocations] = useState<string[]>([])
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState("")
-
-  useEffect(() => {
-    getPolicies().then((d) => setPolicies(d.policies)).catch(console.error).finally(() => setLoading(false))
-  }, [])
-
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!title || !content || locations.length === 0) { setError("Please fill all fields and select at least one location"); return }
-    if (!token) { setError("Not authenticated"); return }
-    setError("")
-    setSubmitting(true)
-    try {
-      await createPolicy({ title, category, content, locations }, token)
-      const d = await getPolicies()
-      setPolicies(d.policies)
-      setTitle(""); setContent(""); setLocations([])
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create policy")
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleDelete = async (id: string) => {
-    if (!token) return
-    try {
-      await deletePolicy(id, token)
-      setPolicies((p) => p.filter((x) => x.id !== id))
-    } catch (e) { console.error(e) }
-  }
-
-  return (
-    <div className="space-y-8">
-      <div>
-        <SectionTitle>HR Policies</SectionTitle>
-        {loading ? <p className="text-slate-500 text-sm">Loading…</p> : policies.length === 0 ? (
-          <EmptyState message="No policies yet" />
-        ) : (
-          <div className="space-y-3">
-            {policies.map((p) => (
-              <div key={p.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <p className="font-semibold text-slate-800">{p.title}</p>
-                    <p className="text-sm text-slate-500 mt-0.5">{p.category} · {p.locations.join(", ")}</p>
-                    <p className="text-sm text-slate-600 mt-2 line-clamp-2">{p.content}</p>
-                  </div>
-                  <button onClick={() => handleDelete(p.id)} className="text-rose-400 hover:text-rose-600 text-sm font-medium flex-shrink-0">Delete</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div>
-        <SectionTitle>Add New Policy</SectionTitle>
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <form onSubmit={handleCreate} className="space-y-5">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Policy Title</label>
-              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Enter policy title"
-                className="w-full rounded-lg border border-slate-200 px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20" />
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Category</label>
-              <select value={category} onChange={(e) => setCategory(e.target.value)}
-                className="w-full appearance-none rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-800 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20">
-                {POLICY_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Policy Content</label>
-              <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Enter policy details…" rows={6}
-                className="w-full resize-none rounded-lg border border-slate-200 px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20" />
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Applicable Locations</label>
-              <LocationPills selected={locations} onChange={setLocations} />
-            </div>
-            {error && <p className="text-sm text-red-500">{error}</p>}
-            <button type="submit" disabled={submitting}
-              className="flex items-center gap-2 rounded-lg bg-teal-600 px-6 py-3 font-medium text-white transition-colors hover:bg-teal-700 disabled:opacity-60">
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              {submitting ? "Creating…" : "Create Policy"}
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function EmployeesTab({ token }: { token?: string }) {
   const fileRef = useRef<HTMLInputElement>(null)
