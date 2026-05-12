@@ -35,6 +35,11 @@ class SupabaseDB:
         }).execute()
         return response.data[0] if response.data else None
 
+    def get_all_profiles(self) -> List[Dict[str, Any]]:
+        """Fetch all profiles, ordered by name."""
+        response = self.client.table("profiles").select("*").order("name", desc=False).execute()
+        return response.data if response.data else []
+
     def update_profile_location(self, user_id: str, location: str) -> Optional[Dict[str, Any]]:
         """Update only the location field for an existing profile."""
         response = self.client.table("profiles").update({"location": location}).eq("id", user_id).execute()

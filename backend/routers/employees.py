@@ -1,10 +1,21 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 import io
+import uuid
 import pandas as pd
 from backend.services.db import db
 from backend.dependencies import get_current_user
 
 router = APIRouter(prefix="/employees", tags=["employees"])
+
+
+@router.get("/")
+async def get_employees(current_user: dict = Depends(get_current_user)):
+    """Get all employees."""
+    try:
+        profiles = db.get_all_profiles()
+        return {"employees": profiles}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/upload")
@@ -31,13 +42,30 @@ async def upload_employees(
             raise HTTPException(status_code=400, detail=f"Missing columns. Required: {required_columns}")
 
         # Delete existing employees for these locations
-        locations_to_delete = df["Location"].unique().tolist()
+        locations_to_delete = set()
+        for loc in df["Location"].unique():
+            loc_normalized = loc.strip()
+            if loc_normalized == "Gurgaon":
+                loc_normalized = "Gurugram"
+            locations_to_delete.add(loc_normalized)
+
         for loc in locations_to_delete:
             db.client.table("profiles").delete().eq("location", loc).execute()
 
-        # Note: In a real implementation, we'd sync with auth.users table
-        # For now, we'll just store profiles with placeholder UUIDs
-        # This would require proper integration with Supabase Auth
+        # Insert new employee profiles
+        for _, row in df.iterrows():
+            location = row["Location"].strip()
+            if location == "Gurgaon":
+                location = "Gurugram"
+            role = row["Role"].strip().lower()
+
+            db.create_profile(
+                user_id=str(uuid.uuid4()),
+                email=row["Email"].strip().lower(),
+                name=row["Name"].strip(),
+                location=location,
+                role=role,
+            )
 
         return {"status": "uploaded", "count": len(df)}
 
