@@ -14,7 +14,7 @@ def _cell(val, default=""):
     return str(val).strip()
 
 
-@router.get("/")
+@router.get("")
 async def get_employees(current_user: dict = Depends(get_current_user)):
     """Get all employees."""
     try:

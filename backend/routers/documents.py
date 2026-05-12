@@ -49,7 +49,7 @@ def extract_text_from_file(file: UploadFile, file_bytes: bytes) -> str:
         raise HTTPException(status_code=400, detail="Unsupported file type. Use PDF, DOCX, or TXT.")
 
 
-@router.get("/")
+@router.get("")
 async def get_documents(location: Optional[str] = None, current_user: dict = Depends(get_current_user)):
     """Get documents, optionally filtered by location."""
     try:
