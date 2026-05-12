@@ -40,6 +40,32 @@ class SupabaseDB:
         response = self.client.table("profiles").select("*").order("name", desc=False).execute()
         return response.data if response.data else []
 
+    def create_employee(self, email: str, name: str, location: str, role: str = "employee") -> Dict[str, Any]:
+        """Create a new employee record (HR directory, no auth.users FK)."""
+        response = self.client.table("employees").insert({
+            "email": email,
+            "name": name,
+            "location": location,
+            "role": role,
+        }).execute()
+        return response.data[0] if response.data else None
+
+    def bulk_create_employees(self, employees: List[Dict[str, Any]]) -> int:
+        """Bulk insert employee records. Returns count inserted."""
+        if not employees:
+            return 0
+        response = self.client.table("employees").insert(employees).execute()
+        return len(response.data) if response.data else 0
+
+    def get_all_employees(self) -> List[Dict[str, Any]]:
+        """Fetch all employees from the HR directory, ordered by name."""
+        response = self.client.table("employees").select("*").order("name", desc=False).execute()
+        return response.data if response.data else []
+
+    def delete_employees_by_location(self, location: str) -> None:
+        """Delete all employees for a given location (used before re-importing from CSV)."""
+        self.client.table("employees").delete().eq("location", location).execute()
+
     def update_profile_location(self, user_id: str, location: str) -> Optional[Dict[str, Any]]:
         """Update only the location field for an existing profile."""
         response = self.client.table("profiles").update({"location": location}).eq("id", user_id).execute()

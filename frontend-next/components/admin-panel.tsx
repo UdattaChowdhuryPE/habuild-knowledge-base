@@ -90,7 +90,6 @@ function LocationPills({ selected, onChange }: { selected: string[]; onChange: (
 function EmployeesTab({ token }: { token?: string }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
-  const [location, setLocation] = useState(LOCATIONS[0])
   const [uploading, setUploading] = useState(false)
   const [result, setResult] = useState("")
 
@@ -98,7 +97,7 @@ function EmployeesTab({ token }: { token?: string }) {
     if (!file || !token) return
     setUploading(true)
     try {
-      const res = await uploadEmployees(file, location, token)
+      const res = await uploadEmployees(file, token)
       setResult(`Uploaded ${res.count} employees successfully`)
       setFile(null)
       if (fileRef.current) fileRef.current.value = ""
@@ -140,10 +139,6 @@ function EmployeesTab({ token }: { token?: string }) {
 
         {file && (
           <div className="mt-4 flex items-center gap-4">
-            <select value={location} onChange={(e) => setLocation(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 focus:border-teal-500 focus:outline-none">
-              {LOCATIONS.map((l) => <option key={l}>{l}</option>)}
-            </select>
             <button onClick={handleUpload} disabled={uploading}
               className="rounded-lg bg-teal-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-60">
               {uploading ? "Uploading…" : "Upload Employees"}

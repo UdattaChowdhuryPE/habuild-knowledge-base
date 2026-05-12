@@ -1,19 +1,25 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 import io
-import uuid
+import traceback
 import pandas as pd
 from backend.services.db import db
 from backend.dependencies import get_current_user
 
 router = APIRouter(prefix="/employees", tags=["employees"])
 
+def _cell(val, default=""):
+    """Convert pandas cell to string, treating NaN/None as default."""
+    if pd.isna(val):
+        return default
+    return str(val).strip()
+
 
 @router.get("/")
 async def get_employees(current_user: dict = Depends(get_current_user)):
     """Get all employees."""
     try:
-        profiles = db.get_all_profiles()
-        return {"employees": profiles}
+        employees = db.get_all_employees()
+        return {"employees": employees}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -21,7 +27,6 @@ async def get_employees(current_user: dict = Depends(get_current_user)):
 @router.post("/upload")
 async def upload_employees(
     file: UploadFile = File(...),
-    location: str = "",
     current_user: dict = Depends(get_current_user)
 ):
     """Upload employee list from CSV/Excel."""
@@ -44,32 +49,43 @@ async def upload_employees(
         # Delete existing employees for these locations
         locations_to_delete = set()
         for loc in df["Location"].unique():
-            loc_normalized = loc.strip()
+            loc_normalized = _cell(loc)
             if loc_normalized == "Gurgaon":
                 loc_normalized = "Gurugram"
-            locations_to_delete.add(loc_normalized)
+            if loc_normalized:
+                locations_to_delete.add(loc_normalized)
 
         for loc in locations_to_delete:
-            db.client.table("profiles").delete().eq("location", loc).execute()
+            db.delete_employees_by_location(loc)
 
-        # Insert new employee profiles
+        # Build list of employee records for bulk insert
+        employees_to_insert = []
         for _, row in df.iterrows():
-            location = row["Location"].strip()
+            name = _cell(row["Name"])
+            email = _cell(row["Email"]).lower()
+            location = _cell(row["Location"])
+            role = _cell(row["Role"]).lower() or "employee"
+
+            # Skip blank rows
+            if not name or not email:
+                continue
+
             if location == "Gurgaon":
                 location = "Gurugram"
-            role = row["Role"].strip().lower()
 
-            db.create_profile(
-                user_id=str(uuid.uuid4()),
-                email=row["Email"].strip().lower(),
-                name=row["Name"].strip(),
-                location=location,
-                role=role,
-            )
+            employees_to_insert.append({
+                "name": name,
+                "email": email,
+                "location": location,
+                "role": role,
+            })
 
-        return {"status": "uploaded", "count": len(df)}
+        # Bulk insert all employees in one API call
+        count = db.bulk_create_employees(employees_to_insert)
+        return {"status": "uploaded", "count": count}
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}")

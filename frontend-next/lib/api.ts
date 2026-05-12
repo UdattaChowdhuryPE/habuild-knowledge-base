@@ -90,10 +90,10 @@ export async function deleteDocument(id: string, token: string) {
   if (!res.ok) throw new Error(await res.text())
 }
 
-export async function uploadEmployees(file: File, location: string, token: string) {
+export async function uploadEmployees(file: File, token: string) {
   const form = new FormData()
   form.append("file", file)
-  const res = await authFetch(`${BASE}/employees/upload?location=${encodeURIComponent(location)}`, { method: "POST", body: form }, token)
+  const res = await authFetch(`${BASE}/employees/upload`, { method: "POST", body: form }, token)
   if (!res.ok) throw new Error(await res.text())
   return res.json() as Promise<{ status: string; count: number }>
 }
