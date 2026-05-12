@@ -17,7 +17,7 @@ interface CompleteProfileViewProps {
   onProfileComplete: (user: User) => void
 }
 
-const LOCATIONS = ["Bangalore", "Gurgaon", "Nagpur"]
+const LOCATIONS = ["Gurugram", "Nagpur", "Bangalore", "Remote"]
 
 export function CompleteProfileView({ session, onProfileComplete }: CompleteProfileViewProps) {
   const [location, setLocation] = useState(LOCATIONS[0])

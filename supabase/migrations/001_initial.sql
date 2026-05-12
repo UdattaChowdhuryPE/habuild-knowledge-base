@@ -6,7 +6,7 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   name text,
   email text unique,
-  location text,  -- "Bangalore" | "Gurgaon" | "Nagpur"
+  location text,  -- "Gurugram" | "Nagpur" | "Bangalore" | "Remote"
   role text default 'employee' check (role in ('employee', 'hr')),
   created_at timestamptz default now()
 );

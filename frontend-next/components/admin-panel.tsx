@@ -6,7 +6,7 @@ import { getDocuments, uploadDocument, deleteDocument, uploadEmployees, type Doc
 
 type AdminTab = "employees" | "documents"
 
-const LOCATIONS = ["Bangalore", "Gurgaon", "Nagpur"]
+const LOCATIONS = ["Gurugram", "Nagpur", "Bangalore", "Remote"]
 const DOC_CATEGORIES = ["Health Insurance", "Claims & Reimbursement", "Onboarding", "Payroll & Tax", "Compliance", "General"]
 
 interface AdminPanelProps {
