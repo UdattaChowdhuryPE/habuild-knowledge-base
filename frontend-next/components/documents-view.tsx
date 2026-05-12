@@ -24,7 +24,7 @@ export function DocumentsView({ location, token }: DocumentsViewProps) {
   const [selectedCategory, setSelectedCategory] = useState("All")
 
   useEffect(() => {
-    getDocuments(location)
+    getDocuments(location, token)
       .then((d) => setDocuments(d.documents))
       .catch(console.error)
       .finally(() => setLoading(false))

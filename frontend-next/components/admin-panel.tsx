@@ -163,7 +163,7 @@ function DocumentsTab({ token }: { token?: string }) {
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    getDocuments().then((d) => setDocuments(d.documents)).catch(console.error).finally(() => setLoading(false))
+    getDocuments(undefined, token).then((d) => setDocuments(d.documents)).catch(console.error).finally(() => setLoading(false))
   }, [])
 
   const handleUpload = async (e: React.FormEvent) => {
@@ -174,7 +174,7 @@ function DocumentsTab({ token }: { token?: string }) {
     setSubmitting(true)
     try {
       await uploadDocument(file, title, category, locations, token)
-      const d = await getDocuments()
+      const d = await getDocuments(undefined, token)
       setDocuments(d.documents)
       setTitle(""); setLocations([]); setFile(null)
       if (fileRef.current) fileRef.current.value = ""

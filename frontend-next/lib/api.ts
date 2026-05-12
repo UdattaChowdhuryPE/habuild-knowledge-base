@@ -67,9 +67,9 @@ export async function* streamMessage(question: string, conversationId: string, l
   }
 }
 
-export async function getDocuments(location?: string) {
-  const url = location ? `${BASE}/documents/?location=${encodeURIComponent(location)}` : `${BASE}/documents/`
-  const res = await fetch(url)
+export async function getDocuments(location?: string, token?: string) {
+  const url = location ? `${BASE}/documents?location=${encodeURIComponent(location)}` : `${BASE}/documents`
+  const res = await authFetch(url, {}, token)
   if (!res.ok) throw new Error(await res.text())
   return res.json() as Promise<{ documents: Document[] }>
 }
