@@ -66,6 +66,33 @@ class SupabaseDB:
         """Delete all employees for a given location (used before re-importing from CSV)."""
         self.client.table("employees").delete().eq("location", location).execute()
 
+    def get_employee_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """Look up a single employee record by email (case-insensitive)."""
+        response = (
+            self.client.table("employees")
+            .select("email, name, location, role")
+            .ilike("email", email)
+            .limit(1)
+            .execute()
+        )
+        return response.data[0] if response.data else None
+
+    def update_profiles_role_for_employees(self, employees: List[Dict[str, Any]]) -> int:
+        """For each employee record, update the matching profiles row's role if a profile exists for that email. Returns the number of profiles actually updated."""
+        updated = 0
+        for emp in employees:
+            email = emp["email"]
+            role = emp["role"]
+            response = (
+                self.client.table("profiles")
+                .update({"role": role})
+                .eq("email", email)
+                .execute()
+            )
+            if response.data:
+                updated += len(response.data)
+        return updated
+
     def update_profile_location(self, user_id: str, location: str) -> Optional[Dict[str, Any]]:
         """Update only the location field for an existing profile."""
         response = self.client.table("profiles").update({"location": location}).eq("id", user_id).execute()

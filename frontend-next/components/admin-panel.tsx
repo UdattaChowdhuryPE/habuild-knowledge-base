@@ -7,7 +7,7 @@ import { getDocuments, uploadDocument, deleteDocument, uploadEmployees, type Doc
 type AdminTab = "employees" | "documents"
 
 const LOCATIONS = ["Gurugram", "Nagpur", "Bangalore", "Remote"]
-const DOC_CATEGORIES = ["Health Insurance", "Claims & Reimbursement", "Onboarding", "Payroll & Tax", "Compliance", "General"]
+const DOC_CATEGORIES = ["Health Insurance", "Leave Policy", "Employee Handbook", "Benefits Guide", "Claims & Reimbursement", "Onboarding", "Payroll & Tax", "Compliance", "General"]
 
 interface AdminPanelProps {
   token?: string

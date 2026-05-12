@@ -64,6 +64,7 @@ package-lock.json
 
 # Supabase
 .supabase/
+supabase/.temp/
 
 # OS
 .DS_Store

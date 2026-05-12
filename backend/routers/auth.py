@@ -40,12 +40,17 @@ async def complete_profile(
             location=normalized_location,
         )
     else:
+        employee_record = db.get_employee_by_email(current_user["email"])
+        role = "employee"
+        if employee_record and employee_record.get("role") in ("employee", "hr"):
+            role = employee_record["role"]
+
         profile = db.create_profile(
             user_id=current_user["id"],
             email=current_user["email"],
             name=current_user["name"],
             location=normalized_location,
-            role="employee",
+            role=role,
         )
 
     return profile

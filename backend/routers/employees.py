@@ -3,7 +3,7 @@ import io
 import traceback
 import pandas as pd
 from backend.services.db import db
-from backend.dependencies import get_current_user
+from backend.dependencies import get_current_user, require_hr_role
 
 router = APIRouter(prefix="/employees", tags=["employees"])
 
@@ -27,7 +27,7 @@ async def get_employees(current_user: dict = Depends(get_current_user)):
 @router.post("/upload")
 async def upload_employees(
     file: UploadFile = File(...),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_hr_role)
 ):
     """Upload employee list from CSV/Excel."""
     try:
@@ -82,7 +82,11 @@ async def upload_employees(
 
         # Bulk insert all employees in one API call
         count = db.bulk_create_employees(employees_to_insert)
-        return {"status": "uploaded", "count": count}
+
+        # Propagate role changes to any profiles that already exist for these employees
+        profiles_updated = db.update_profiles_role_for_employees(employees_to_insert)
+
+        return {"status": "uploaded", "count": count, "profiles_updated": profiles_updated}
 
     except HTTPException:
         raise
