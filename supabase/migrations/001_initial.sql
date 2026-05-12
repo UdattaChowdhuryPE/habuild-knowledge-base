@@ -15,7 +15,7 @@ create table if not exists public.profiles (
 create table if not exists public.chunks (
   id uuid primary key default gen_random_uuid(),
   source_id uuid not null,
-  source_type text not null check (source_type in ('policy', 'document')),
+  source_type text not null check (source_type in ('document')),
   source_title text,
   content text not null,
   embedding vector(1024),  -- voyage-3-lite dimension
