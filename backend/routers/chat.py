@@ -58,25 +58,13 @@ async def send_message(request: ChatRequest, current_user: dict = Depends(get_cu
         # Get relevant context from RAG
         context = get_relevant_context(request.question, user_location, top_k=5)
 
-        # If no relevant documents found, return hardcoded response
-        _NO_RESULTS = "No relevant documents found for your location."
-        _STANDARD_NOT_FOUND = "I could not find any HR policy information relevant to your query. Please contact HR directly for clarification."
-        
-        if context == _NO_RESULTS:
-            def fallback_generator():
-                db.add_message(request.conversation_id, "assistant", _STANDARD_NOT_FOUND)
-                safe_token = _STANDARD_NOT_FOUND.replace("\n", r"\n")
-                yield f"data: {safe_token}\n\n"
-                yield "data: [DONE]\n\n"
-            
-            return StreamingResponse(
-                fallback_generator(),
-                media_type="text/event-stream",
-                headers={
-                    "Cache-Control": "no-cache",
-                    "X-Accel-Buffering": "no",
-                    "Connection": "keep-alive",
-                },
+        # If no policy documents found, enhance context to help Claude use tools for employee queries
+        if context == "No relevant documents found for your location.":
+            context = (
+                "No relevant HR policy documents were found for this query. "
+                "Do NOT make up or guess any policies. "
+                "If the question is about an employee (name, email, location, role), use the provided tools. "
+                "Otherwise, tell the user you could not find policy information and suggest contacting HR directly."
             )
 
         # Stream response from Claude
