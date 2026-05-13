@@ -176,14 +176,14 @@ export default function HabuildHRPortal() {
         onSignOut={handleSignOut}
       />
 
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-hidden">
         {authState === "unauthenticated" && <SignInView error={authError} />}
 
         {authState === "needs-profile" && session && <CompleteProfileView session={session} onProfileComplete={handleProfileComplete} />}
 
         {authState === "authenticated" && user && currentPage === "app" && (
           <div className="flex flex-col h-full p-8">
-            <div className="mx-auto w-full max-w-4xl flex flex-col flex-1">
+            <div className="mx-auto w-full max-w-4xl flex flex-col flex-1 min-h-0">
               {/* Welcome card */}
               <div className="rounded-xl bg-gradient-to-br from-slate-800 via-slate-700 to-teal-800 p-8 text-center text-white mb-6">
                 <div className="mb-4 text-5xl">🏃</div>
@@ -200,7 +200,7 @@ export default function HabuildHRPortal() {
 
               {/* Messages */}
               {messages.length > 0 && (
-                <div className="flex-1 space-y-4 mb-6 overflow-y-auto max-h-[60vh]">
+                <div className="flex-1 space-y-4 mb-6 overflow-y-auto min-h-0">
                   {messages.map((msg, i) => (
                     <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                       <div
