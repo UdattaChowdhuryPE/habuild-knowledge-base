@@ -52,3 +52,9 @@ class MessageResponse(BaseModel):
     role: str
     content: str
     created_at: str
+
+
+class ConversationResponse(BaseModel):
+    id: str
+    title: str
+    created_at: str

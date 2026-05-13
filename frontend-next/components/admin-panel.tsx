@@ -17,7 +17,7 @@ export function AdminPanel({ token }: AdminPanelProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>("employees")
 
   return (
-    <div className="p-8">
+    <div className="h-full overflow-y-auto p-8">
       <div className="mx-auto max-w-5xl">
         {/* Header */}
         <div className="mb-8 flex items-center gap-4 rounded-xl bg-gradient-to-r from-slate-100 to-teal-50 p-6">

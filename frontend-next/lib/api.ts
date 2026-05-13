@@ -77,6 +77,13 @@ export async function getDocuments(location?: string, token?: string) {
   return res.json() as Promise<{ documents: Document[] }>
 }
 
+export async function getConversations(token?: string) {
+  const res = await authFetch(`${BASE}/chat/conversations`, {}, token)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json() as Promise<{ conversations: Conversation[] }>
+}
+
+
 export async function uploadDocument(file: File, title: string, category: string, locations: string[], token: string) {
   const form = new FormData()
   form.append("file", file)
@@ -109,5 +116,11 @@ export interface Document {
   file_name: string
   file_size?: string
   locations: string[]
+  created_at: string
+}
+
+export interface Conversation {
+  id: string
+  title: string
   created_at: string
 }

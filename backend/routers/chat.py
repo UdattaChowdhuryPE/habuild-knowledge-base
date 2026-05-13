@@ -101,3 +101,14 @@ async def get_conversation_history(conversation_id: str, limit: int = 20, curren
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/conversations")
+async def get_conversations(limit: int = 30, current_user: dict = Depends(get_current_user)):
+    """Get list of recent conversations for the authenticated user."""
+    try:
+        conversations = db.get_user_conversations(current_user["id"], limit=limit)
+        return {"conversations": conversations}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+

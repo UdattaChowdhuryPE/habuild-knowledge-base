@@ -8,8 +8,7 @@ import { Sidebar } from "@/components/sidebar"
 import { SignInView } from "@/components/sign-in-view"
 import { CompleteProfileView } from "@/components/complete-profile-view"
 import { AdminPanel } from "@/components/admin-panel"
-import { DocumentsView } from "@/components/documents-view"
-import { startConversation, streamMessage, getMyProfile } from "@/lib/api"
+import { startConversation, streamMessage, getMyProfile, getConversations, Conversation } from "@/lib/api"
 import { supabase } from "@/lib/supabase"
 
 type AuthState = "loading" | "unauthenticated" | "needs-profile" | "authenticated"
@@ -33,7 +32,10 @@ export default function HabuildHRPortal() {
   const [user, setUser] = useState<User | null>(null)
   const [authError, setAuthError] = useState("")
 
-  const [currentPage, setCurrentPage] = useState<"app" | "admin" | "documents">("app")
+  const [currentPage, setCurrentPage] = useState<"app" | "admin">("app")
+  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [loadingConversations, setLoadingConversations] = useState(false)
+
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
@@ -92,6 +94,13 @@ export default function HabuildHRPortal() {
       } else {
         setUser(profile)
         setAuthState("authenticated")
+        // Fetch conversations for the sidebar
+        try {
+          const { conversations } = await getConversations(session.access_token)
+          setConversations(conversations)
+        } catch (err) {
+          console.error("Failed to fetch conversations:", err)
+        }
       }
     } catch (error) {
       console.error("Profile fetch error:", error)
@@ -121,6 +130,31 @@ export default function HabuildHRPortal() {
     setMessages([])
     setCurrentPage("app")
   }
+  const handleNewChat = async () => {
+    if (!session) return
+    setConversationId(null)
+    setMessages([])
+    setCurrentPage("app")
+  }
+
+  const handleSelectConversation = async (id: string) => {
+    if (!session) return
+    setConversationId(id)
+    setCurrentPage("app")
+    // Fetch messages for this conversation
+    try {
+      const res = await fetch(`/api/chat/history/${id}`, {
+        headers: { "Authorization": `Bearer ${session.access_token}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setMessages(data.messages || [])
+      }
+    } catch (err) {
+      console.error("Failed to fetch conversation history:", err)
+    }
+  }
+
 
   const ensureConversation = async (): Promise<string> => {
     if (conversationId) return conversationId
@@ -148,6 +182,13 @@ export default function HabuildHRPortal() {
           }
           return updated
         })
+      }
+      // Refresh conversations list after new message
+      try {
+        const { conversations: updated } = await getConversations(session.access_token)
+        setConversations(updated)
+      } catch (err) {
+        console.error("Failed to refresh conversations:", err)
       }
     } catch (e) {
       setMessages((prev) => [...prev, { role: "assistant", content: `Error: ${e instanceof Error ? e.message : "Unknown error"}` }])
@@ -182,6 +223,10 @@ export default function HabuildHRPortal() {
         isSignedIn={authState === "authenticated"}
         user={user}
         onSignOut={handleSignOut}
+        conversations={conversations}
+        activeConversationId={conversationId}
+        onNewChat={handleNewChat}
+        onSelectConversation={handleSelectConversation}
       />
 
       <main className="flex-1 overflow-hidden">
@@ -192,19 +237,21 @@ export default function HabuildHRPortal() {
         {authState === "authenticated" && user && currentPage === "app" && (
           <div className="flex flex-col h-full p-8">
             <div className="mx-auto w-full max-w-4xl flex flex-col flex-1 min-h-0">
-              {/* Welcome card */}
-              <div className="rounded-xl bg-gradient-to-br from-slate-800 via-slate-700 to-teal-800 p-8 text-center text-white mb-6">
-                <div className="mb-4 text-5xl">🏃</div>
-                <h1 className="mb-3 text-3xl font-bold">Welcome back, {user.name}!</h1>
-                <p className="text-slate-300">Ask me anything about HR policies, leave, benefits, compliance, and more.</p>
-                <div className="mt-6 flex flex-wrap justify-center gap-2">
-                  {["Leave Policies", "Benefits", "Compliance", "Onboarding"].map((tag) => (
-                    <span key={tag} className="rounded-full bg-white/10 px-4 py-2 text-sm backdrop-blur-sm hover:bg-white/20 cursor-default">
-                      {tag}
-                    </span>
-                  ))}
+              {/* Welcome card — shown only on empty chat */}
+              {messages.length === 0 && (
+                <div className="rounded-xl bg-gradient-to-br from-slate-800 via-slate-700 to-teal-800 p-8 text-center text-white mb-6">
+                  <div className="mb-4 text-5xl">🏃</div>
+                  <h1 className="mb-3 text-3xl font-bold">Welcome back, {user.name}!</h1>
+                  <p className="text-slate-300">Ask me anything about HR policies, leave, benefits, compliance, and more.</p>
+                  <div className="mt-6 flex flex-wrap justify-center gap-2">
+                    {["Leave Policies", "Benefits", "Compliance", "Onboarding"].map((tag) => (
+                      <span key={tag} className="rounded-full bg-white/10 px-4 py-2 text-sm backdrop-blur-sm hover:bg-white/20 cursor-default">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Messages */}
               {messages.length > 0 && (
@@ -283,7 +330,7 @@ export default function HabuildHRPortal() {
         )}
 
         {authState === "authenticated" && user?.role === "hr" && currentPage === "admin" && <AdminPanel token={session?.access_token} />}
-        {authState === "authenticated" && user && currentPage === "documents" && <DocumentsView location={user.location} token={session?.access_token} />}
+        
       </main>
     </div>
   )

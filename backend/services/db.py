@@ -103,6 +103,28 @@ class SupabaseDB:
         response = self.client.table("conversations").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(limit).execute()
         return response.data if response.data else []
 
+
+    def get_user_conversations(self, user_id: str, limit: int = 30) -> List[Dict[str, Any]]:
+        """Get recent conversations for a user with preview titles (first message)."""
+        convos = self.client.table("conversations").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(limit).execute()
+        if not convos.data:
+            return []
+        
+        result = []
+        for convo in convos.data:
+            # Get first message as title preview
+            messages = self.client.table("messages").select("content").eq("conversation_id", convo["id"]).order("created_at", desc=False).limit(1).execute()
+            # Skip empty conversations (no messages yet)
+            if not messages.data:
+                continue
+            title = messages.data[0]["content"][:60] + ("..." if len(messages.data[0]["content"]) > 60 else "")
+            result.append({
+                "id": convo["id"],
+                "title": title,
+                "created_at": convo["created_at"]
+            })
+        return result
+
     def create_conversation(self, user_id: str, location: str) -> Dict[str, Any]:
         """Create a new conversation."""
         response = self.client.table("conversations").insert({
