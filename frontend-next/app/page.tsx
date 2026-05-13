@@ -95,7 +95,15 @@ export default function HabuildHRPortal() {
       }
     } catch (error) {
       console.error("Profile fetch error:", error)
-      setAuthState("needs-profile")
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      if (errorMsg.includes("Invalid or expired token")) {
+        await supabase.auth.signOut()
+        setAuthState("unauthenticated")
+        setSession(null)
+        setUser(null)
+      } else {
+        setAuthState("needs-profile")
+      }
     }
   }
 
