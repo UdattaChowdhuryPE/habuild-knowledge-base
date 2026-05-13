@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, BackgroundTasks
 import io
 import traceback
 import pandas as pd
@@ -27,6 +27,7 @@ async def get_employees(current_user: dict = Depends(get_current_user)):
 @router.post("/upload")
 async def upload_employees(
     file: UploadFile = File(...),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     current_user: dict = Depends(require_hr_role)
 ):
     """Upload employee list from CSV/Excel."""
@@ -89,20 +90,22 @@ async def upload_employees(
         # Bulk insert all employees in one API call
         count = db.bulk_create_employees(employees_to_insert)
 
-        # Try to propagate role changes to existing profiles, but don't fail the upload if this times out
-        profiles_updated = 0
-        try:
-            profiles_updated = db.update_profiles_role_for_employees(employees_to_insert)
-        except Exception as e:
-            # Profile updates are nice-to-have, not critical. Log and continue.
-            import traceback
-            traceback.print_exc()
-            print(f"Warning: Profile role updates failed (non-critical): {e}")
+        # Try to propagate role changes to existing profiles in the background
+        # so it doesn't block the HTTP response and cause a timeout.
+        def update_roles_bg():
+            try:
+                db.update_profiles_role_for_employees(employees_to_insert)
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                print(f"Warning: Profile role updates failed (non-critical): {e}")
+
+        background_tasks.add_task(update_roles_bg)
 
         return {
             "status": "uploaded",
             "count": count,
-            "profiles_updated": profiles_updated,
+            "profiles_updated": "updating_in_background",
             "skipped": len(skipped_rows),
             "skipped_rows": skipped_rows[:20] if skipped_rows else []
         }
