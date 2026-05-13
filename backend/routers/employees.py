@@ -70,7 +70,7 @@ async def upload_employees(
             # Skip blank rows, but track them
             if not name or not email:
                 skipped_rows.append({
-                    "row": idx + 2,  # +1 for 0-index, +1 for header
+                    "row": int(idx) + 2,  # +1 for 0-index, +1 for header
                     "reason": "missing name" if not name else "missing email",
                     "partial_data": name or email or "(blank)"
                 })
@@ -89,8 +89,15 @@ async def upload_employees(
         # Bulk insert all employees in one API call
         count = db.bulk_create_employees(employees_to_insert)
 
-        # Propagate role changes to any profiles that already exist for these employees
-        profiles_updated = db.update_profiles_role_for_employees(employees_to_insert)
+        # Try to propagate role changes to existing profiles, but don't fail the upload if this times out
+        profiles_updated = 0
+        try:
+            profiles_updated = db.update_profiles_role_for_employees(employees_to_insert)
+        except Exception as e:
+            # Profile updates are nice-to-have, not critical. Log and continue.
+            import traceback
+            traceback.print_exc()
+            print(f"Warning: Profile role updates failed (non-critical): {e}")
 
         return {
             "status": "uploaded",

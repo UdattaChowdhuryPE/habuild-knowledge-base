@@ -105,7 +105,7 @@ export async function uploadEmployees(file: File, token: string) {
   form.append("file", file)
   const res = await authFetch(`${BASE}/employees/upload`, { method: "POST", body: form }, token)
   if (!res.ok) throw new Error(await res.text())
-  return res.json() as Promise<{ status: string; count: number }>
+  return res.json() as Promise<{ status: string; count: number; skipped?: number; skipped_rows?: Array<{ row: number; reason: string; partial_data: string }> }>
 }
 
 export interface Document {

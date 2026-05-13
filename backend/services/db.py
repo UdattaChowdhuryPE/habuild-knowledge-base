@@ -55,9 +55,6 @@ class SupabaseDB:
         if not employees:
             return 0
         response = self.client.table("employees").insert(employees).execute()
-        # Check for Supabase errors
-        if hasattr(response, 'error') and response.error:
-            raise Exception(f"Supabase insert error: {response.error}")
         return len(response.data) if response.data else 0
 
     def get_all_employees(self) -> List[Dict[str, Any]]:
