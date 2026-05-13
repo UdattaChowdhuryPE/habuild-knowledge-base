@@ -7,7 +7,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 class CompleteProfileRequest(BaseModel):
-    location: str
+    pass
 
 
 @router.get("/me")
@@ -25,32 +25,35 @@ async def complete_profile(
     current_user: dict = Depends(get_current_user),
 ):
     """
-    Create or update the user's profile with their chosen location.
-    Called once after first Google login to set the office location.
+    Create or update the user's profile with location from employee directory.
+    Called once after first Google login.
     """
     if not is_allowed_email(current_user["email"]):
         raise HTTPException(status_code=403, detail="Email domain not allowed")
 
-    normalized_location = body.location.strip().title()
     existing = db.get_profile_by_id(current_user["id"])
 
     if existing:
-        profile = db.update_profile_location(
-            user_id=current_user["id"],
-            location=normalized_location,
-        )
-    else:
-        employee_record = db.get_employee_by_email(current_user["email"])
-        role = "employee"
-        if employee_record and employee_record.get("role") in ("employee", "hr"):
-            role = employee_record["role"]
+        return existing
+    
+    employee_record = db.get_employee_by_email(current_user["email"])
+    if not employee_record:
+        raise HTTPException(status_code=404, detail="Your email is not in the employee directory. Please contact HR.")
+    
+    location = employee_record.get("location")
+    if not location:
+        raise HTTPException(status_code=404, detail="Location not found for your email. Please contact HR.")
+    
+    role = "employee"
+    if employee_record.get("role") in ("employee", "hr"):
+        role = employee_record["role"]
 
-        profile = db.create_profile(
-            user_id=current_user["id"],
-            email=current_user["email"],
-            name=current_user["name"],
-            location=normalized_location,
-            role=role,
-        )
+    profile = db.create_profile(
+        user_id=current_user["id"],
+        email=current_user["email"],
+        name=current_user["name"],
+        location=location,
+        role=role,
+    )
 
     return profile

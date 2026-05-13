@@ -11,12 +11,16 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 
 @router.post("/start")
-async def start_conversation(location: str, current_user: dict = Depends(get_current_user)):
+async def start_conversation(current_user: dict = Depends(get_current_user)):
     """Start a new conversation."""
     try:
-        normalized_location = location.strip().title()
-        conversation = db.create_conversation(current_user["id"], normalized_location)
+        profile = db.get_profile_by_id(current_user["id"])
+        if not profile or not profile.get("location"):
+            raise HTTPException(status_code=400, detail="Profile location not set. Please complete your profile.")
+        conversation = db.create_conversation(current_user["id"], profile["location"])
         return {"conversation_id": conversation["id"]}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -27,10 +31,15 @@ async def send_message(request: ChatRequest, current_user: dict = Depends(get_cu
     Send a message and get a streaming response from Claude.
     """
     try:
-        # Verify conversation belongs to current user
+        # Verify conversation belongs to current user and exists
         conversation = db.get_conversation(request.conversation_id)
         if not conversation or conversation["user_id"] != current_user["id"]:
             raise HTTPException(status_code=404, detail="Conversation not found")
+        
+        # Verify user profile is complete
+        profile = db.get_profile_by_id(current_user["id"])
+        if not profile:
+            raise HTTPException(status_code=400, detail="Profile not found. Please complete your profile.")
         
         # Fetch history before saving the new message so the current question
         # isn't duplicated (llm.py appends it again when building messages)
@@ -43,15 +52,17 @@ async def send_message(request: ChatRequest, current_user: dict = Depends(get_cu
         # Store user message after fetching history
         db.add_message(request.conversation_id, "user", request.question)
 
+        # Get user location from profile (already verified above)
+        user_location = profile["location"]
+        
         # Get relevant context from RAG
-        normalized_location = request.location.strip().title()
-        context = get_relevant_context(request.question, normalized_location, top_k=5)
+        context = get_relevant_context(request.question, user_location, top_k=5)
 
         # Stream response from Claude
         def response_generator():
             full_response = ""
             try:
-                for token in llm_service.stream_chat(request.question, context, conversation_history):
+                for token in llm_service.stream_chat(request.question, context, conversation_history, user_location):
                     full_response += token
                     safe_token = token.replace("\n", r"\n")
                     yield f"data: {safe_token}\n\n"

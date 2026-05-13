@@ -14,13 +14,16 @@ class LLMService:
         self,
         question: str,
         context: str,
-        conversation_history: List[Dict[str, str]]
+        conversation_history: List[Dict[str, str]],
+        user_location: str
     ) -> Generator[str, None, None]:
         """
         Stream a response from Claude using conversation history and retrieved context.
         Yields tokens as they arrive.
         """
         system_message = f"""You are an HR Policy Assistant for Habuild.
+
+Employee location: {user_location}
 
 Your job is to answer employee questions using ONLY the retrieved context provided to you.
 
@@ -34,7 +37,13 @@ CRITICAL RULES:
 7. Prefer clarity over completeness.
 8. Keep responses concise unless the user explicitly asks for detail.
 
-STRICT RESPONSE FORMAT:
+LOCATION RULE (HIGHEST PRIORITY):
+If the user asks about HR policies, leave, benefits, or any information that pertains to a location OTHER than {user_location}, do NOT provide that information.
+Instead respond exactly:
+"I can only provide HR information relevant to your location ({user_location}). For policies at other locations, please reach out to HR directly."
+
+
+STRICT RESPONSE FORMAT (when answering allowed location questions):
 - Start with a direct answer in 1-2 lines.
 - Then provide structured bullet points.
 - Use headings when appropriate.

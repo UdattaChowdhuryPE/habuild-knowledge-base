@@ -6,7 +6,6 @@ from datetime import datetime
 class ChatRequest(BaseModel):
     question: str
     conversation_id: str
-    location: str
 
 
 class ChatResponse(BaseModel):
@@ -31,7 +30,7 @@ class EmployeeUpload(BaseModel):
 
 
 class ConversationCreate(BaseModel):
-    location: str
+    pass
 
 
 class ProfileResponse(BaseModel):

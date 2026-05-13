@@ -116,7 +116,7 @@ export default function HabuildHRPortal() {
 
   const ensureConversation = async (): Promise<string> => {
     if (conversationId) return conversationId
-    const { conversation_id } = await startConversation(user!.location, session!.access_token)
+    const { conversation_id } = await startConversation(session!.access_token)
     setConversationId(conversation_id)
     return conversation_id
   }
@@ -131,7 +131,7 @@ export default function HabuildHRPortal() {
     try {
       const convId = await ensureConversation()
       setMessages((prev) => [...prev, { role: "assistant", content: "" }])
-      for await (const token of streamMessage(question, convId, user.location, session.access_token)) {
+      for await (const token of streamMessage(question, convId, session.access_token)) {
         setMessages((prev) => {
           const updated = [...prev]
           updated[updated.length - 1] = {

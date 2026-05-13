@@ -20,13 +20,13 @@ export async function getMyProfile(token: string) {
   return res.json() as Promise<{ id: string; name: string; email: string; location: string; role: string }>
 }
 
-export async function completeProfile(location: string, token: string) {
+export async function completeProfile(token: string) {
   const res = await authFetch(
     `${BASE}/auth/complete-profile`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ location }),
+      body: JSON.stringify({}),
     },
     token
   )
@@ -34,19 +34,19 @@ export async function completeProfile(location: string, token: string) {
   return res.json() as Promise<{ id: string; name: string; email: string; location: string; role: string }>
 }
 
-export async function startConversation(location: string, token: string) {
-  const res = await authFetch(`${BASE}/chat/start?location=${encodeURIComponent(location)}`, { method: "POST" }, token)
+export async function startConversation(token: string) {
+  const res = await authFetch(`${BASE}/chat/start`, { method: "POST" }, token)
   if (!res.ok) throw new Error(await res.text())
   return res.json() as Promise<{ conversation_id: string }>
 }
 
-export async function* streamMessage(question: string, conversationId: string, location: string, token: string) {
+export async function* streamMessage(question: string, conversationId: string, token: string) {
   const res = await authFetch(
     `${BACKEND_DIRECT}/chat/message`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, conversation_id: conversationId, location }),
+      body: JSON.stringify({ question, conversation_id: conversationId }),
     },
     token
   )
