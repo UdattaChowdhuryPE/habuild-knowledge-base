@@ -98,7 +98,11 @@ function EmployeesTab({ token }: { token?: string }) {
     setUploading(true)
     try {
       const res = await uploadEmployees(file, token)
-      setResult(`Uploaded ${res.count} employees successfully`)
+      if (res.skipped && res.skipped > 0) {
+        setResult(`Uploaded ${res.count} employees. ⚠️ Skipped ${res.skipped} rows with missing name or email.`)
+      } else {
+        setResult(`Uploaded ${res.count} employees successfully`)
+      }
       setFile(null)
       if (fileRef.current) fileRef.current.value = ""
     } catch (e) {

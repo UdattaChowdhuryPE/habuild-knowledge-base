@@ -58,16 +58,22 @@ async def upload_employees(
         for loc in locations_to_delete:
             db.delete_employees_by_location(loc)
 
-        # Build list of employee records for bulk insert
+        # Build list of employee records for bulk insert, tracking skipped rows
         employees_to_insert = []
-        for _, row in df.iterrows():
+        skipped_rows = []
+        for idx, row in df.iterrows():
             name = _cell(row["Name"])
             email = _cell(row["Email"]).lower()
             location = _cell(row["Location"])
             role = _cell(row["Role"]).lower() or "employee"
 
-            # Skip blank rows
+            # Skip blank rows, but track them
             if not name or not email:
+                skipped_rows.append({
+                    "row": idx + 2,  # +1 for 0-index, +1 for header
+                    "reason": "missing name" if not name else "missing email",
+                    "partial_data": name or email or "(blank)"
+                })
                 continue
 
             if location == "Gurgaon":
@@ -86,7 +92,13 @@ async def upload_employees(
         # Propagate role changes to any profiles that already exist for these employees
         profiles_updated = db.update_profiles_role_for_employees(employees_to_insert)
 
-        return {"status": "uploaded", "count": count, "profiles_updated": profiles_updated}
+        return {
+            "status": "uploaded",
+            "count": count,
+            "profiles_updated": profiles_updated,
+            "skipped": len(skipped_rows),
+            "skipped_rows": skipped_rows[:20] if skipped_rows else []
+        }
 
     except HTTPException:
         raise
