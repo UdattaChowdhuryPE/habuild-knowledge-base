@@ -1,4 +1,5 @@
 import os
+import time
 import voyageai
 from typing import List, Dict, Any
 
@@ -29,13 +30,20 @@ class EmbeddingsService:
             return []
 
     def embed_batch(self, texts: List[str], input_type: str = "document") -> List[List[float]]:
-        """Embed multiple texts at once."""
-        try:
-            result = self.client.embed(texts, model="voyage-3-lite", input_type=input_type)
-            return result.embeddings
-        except Exception as e:
-            print(f"Error embedding batch: {e}")
-            return []
+        """Embed multiple texts at once, with retry on rate limit (free tier: 3 RPM)."""
+        for attempt in range(3):
+            try:
+                result = self.client.embed(texts, model="voyage-3-lite", input_type=input_type)
+                return result.embeddings
+            except Exception as e:
+                msg = str(e)
+                print(f"Error embedding batch: {e}")
+                # Rate limit: wait 20s and retry (free tier allows 3 RPM)
+                if attempt < 2 and ("rate" in msg.lower() or "429" in msg or "payment" in msg.lower()):
+                    time.sleep(20)
+                    continue
+                return []
+        return []
 
     def rerank(self, query: str, documents: List[str], top_k: int = 5) -> List[Dict[str, Any]]:
         """Rerank documents by relevance to the query using Voyage's reranker."""

@@ -135,9 +135,16 @@ class SupabaseDB:
         # Delete old chunks for this source
         self.client.table("chunks").delete().eq("source_id", source_id).eq("source_type", source_type).execute()
 
-        # Insert new chunks
+        # Insert new chunks, formatting embeddings as pgvector
         if chunks_data:
-            self.client.table("chunks").insert(chunks_data).execute()
+            formatted_chunks = []
+            for chunk in chunks_data:
+                formatted_chunk = chunk.copy()
+                # Format embedding as pgvector string [a,b,c,...]
+                if isinstance(formatted_chunk.get('embedding'), list):
+                    formatted_chunk['embedding'] = f"[{','.join(str(float(x)) for x in formatted_chunk['embedding'])}]"
+                formatted_chunks.append(formatted_chunk)
+            self.client.table("chunks").insert(formatted_chunks).execute()
 
     def search_chunks_by_location(self, query_embedding: List[float], location: str, top_k: int = 5) -> List[Dict[str, Any]]:
         """Search for relevant chunks using vector similarity filtered by location."""

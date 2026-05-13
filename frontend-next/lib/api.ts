@@ -1,4 +1,7 @@
 const BASE = "/api"
+const BACKEND_DIRECT = typeof window !== "undefined"
+  ? (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000")
+  : "http://localhost:8000"
 
 async function authFetch(url: string, options: RequestInit = {}, token?: string): Promise<Response> {
   const headers: Record<string, string> = {
@@ -39,7 +42,7 @@ export async function startConversation(location: string, token: string) {
 
 export async function* streamMessage(question: string, conversationId: string, location: string, token: string) {
   const res = await authFetch(
-    `${BASE}/chat/message`,
+    `${BACKEND_DIRECT}/chat/message`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -55,13 +58,15 @@ export async function* streamMessage(question: string, conversationId: string, l
     const { done, value } = await reader.read()
     if (done) break
     buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split("\n")
-    buffer = lines.pop() ?? ""
-    for (const line of lines) {
-      if (line.startsWith("data: ")) {
-        const token = line.slice(6)
-        if (token === "[DONE]") return
-        if (!token.startsWith("[ERROR]")) yield token
+    const events = buffer.split("\n\n")
+    buffer = events.pop() ?? ""
+    for (const event of events) {
+      for (const line of event.split("\n")) {
+        if (line.startsWith("data: ")) {
+          const token = line.slice(6)
+          if (token === "[DONE]") return
+          if (!token.startsWith("[ERROR]")) yield token
+        }
       }
     }
   }

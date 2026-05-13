@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from "react"
 import { Session } from "@supabase/supabase-js"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import { Sidebar } from "@/components/sidebar"
 import { SignInView } from "@/components/sign-in-view"
 import { CompleteProfileView } from "@/components/complete-profile-view"
@@ -208,13 +210,38 @@ export default function HabuildHRPortal() {
                             : "bg-white border border-slate-200 text-slate-800 shadow-sm"
                         }`}
                       >
-                        {msg.content || (streaming && msg.role === "assistant" ? (
-                          <span className="flex gap-1">
-                            <span className="animate-bounce">•</span>
-                            <span className="animate-bounce [animation-delay:0.1s]">•</span>
-                            <span className="animate-bounce [animation-delay:0.2s]">•</span>
-                          </span>
-                        ) : "")}
+                        {msg.role === "assistant" ? (
+                          msg.content ? (
+                            <div className="prose prose-sm prose-slate max-w-none">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                  table: ({ node, ...props }) => (
+                                    <div className="overflow-x-auto my-2">
+                                      <table className="border-collapse w-full text-xs" {...props} />
+                                    </div>
+                                  ),
+                                  th: ({ node, ...props }) => (
+                                    <th className="border border-slate-300 bg-slate-100 px-3 py-1.5 text-left font-semibold" {...props} />
+                                  ),
+                                  td: ({ node, ...props }) => (
+                                    <td className="border border-slate-300 px-3 py-1.5" {...props} />
+                                  ),
+                                }}
+                              >
+                                {msg.content}
+                              </ReactMarkdown>
+                            </div>
+                          ) : streaming ? (
+                            <span className="flex gap-1">
+                              <span className="animate-bounce">•</span>
+                              <span className="animate-bounce [animation-delay:0.1s]">•</span>
+                              <span className="animate-bounce [animation-delay:0.2s]">•</span>
+                            </span>
+                          ) : ""
+                        ) : (
+                          msg.content
+                        )}
                       </div>
                     </div>
                   ))}

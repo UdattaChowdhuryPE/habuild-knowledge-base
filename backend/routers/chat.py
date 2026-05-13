@@ -62,7 +62,15 @@ async def send_message(request: ChatRequest, current_user: dict = Depends(get_cu
             except Exception as e:
                 yield f"data: [ERROR] {str(e)}\n\n"
 
-        return StreamingResponse(response_generator(), media_type="text/event-stream")
+        return StreamingResponse(
+            response_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+                "Connection": "keep-alive",
+            },
+        )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

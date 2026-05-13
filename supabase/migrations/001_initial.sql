@@ -18,7 +18,7 @@ create table if not exists public.chunks (
   source_type text not null check (source_type in ('document')),
   source_title text,
   content text not null,
-  embedding vector(1024),  -- voyage-3-lite dimension
+  embedding vector(512),  -- voyage-3-lite free tier dimension
   locations text[],
   created_at timestamptz default now()
 );
@@ -94,7 +94,7 @@ create policy "messages_service_can_manage" on public.messages
 
 -- Helper RPC function for vector search with location filtering
 create or replace function public.match_chunks_by_location(
-  query_embedding vector(1024),
+  query_embedding vector(512),
   match_count int,
   location_filter text
 )
