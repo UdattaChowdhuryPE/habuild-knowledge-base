@@ -1,6 +1,7 @@
 import os
 from anthropic import Anthropic
-from typing import Generator, List, Dict, Any
+from typing import List, Dict, Any, Generator
+from backend.services.tools import TOOLS, execute_tool
 
 
 class LLMService:
@@ -19,29 +20,30 @@ class LLMService:
     ) -> Generator[str, None, None]:
         """
         Stream a response from Claude using conversation history and retrieved context.
-        Yields tokens as they arrive.
+        Supports tool use for employee queries. Yields tokens as they arrive.
         """
         system_message = f"""You are an HR Policy Assistant for Habuild.
 
 Employee location: {user_location}
 
-Your job is to answer employee questions using ONLY the retrieved context provided to you.
+Your job is to answer employee questions using the available tools and retrieved context.
 
 CRITICAL RULES:
-1. NEVER dump raw policy text.
-2. NEVER output unformatted paragraphs of extracted chunks.
-3. ALWAYS summarize policies into clean HR-readable responses.
-4. ALWAYS use proper markdown formatting.
-5. If information is incomplete or missing, clearly say so.
-6. NEVER invent policies that are not present in the retrieved documents.
-7. Prefer clarity over completeness.
-8. Keep responses concise unless the user explicitly asks for detail.
+1. For HR policy questions, use retrieved context.
+2. For employee lookup questions (how many employees, which location is person X, etc.), use the provided tools.
+3. NEVER dump raw policy text.
+4. NEVER output unformatted paragraphs of extracted chunks.
+5. ALWAYS summarize policies into clean HR-readable responses.
+6. ALWAYS use proper markdown formatting.
+7. If information is incomplete or missing, clearly say so.
+8. NEVER invent policies that are not present in the retrieved documents.
+9. Prefer clarity over completeness.
+10. Keep responses concise unless the user explicitly asks for detail.
 
-LOCATION RULE (HIGHEST PRIORITY):
+LOCATION RULE (HIGHEST PRIORITY for policy questions):
 If the user asks about HR policies, leave, benefits, or any information that pertains to a location OTHER than {user_location}, do NOT provide that information.
 Instead respond exactly:
 "I can only provide HR information relevant to your location ({user_location}). For policies at other locations, please reach out to HR directly."
-
 
 STRICT RESPONSE FORMAT (when answering allowed location questions):
 - Start with a direct answer in 1-2 lines.
@@ -96,14 +98,59 @@ DO NOT:
             {"role": "user", "content": question}
         ]
 
+        # Phase 1: Stream with tools enabled
+        # Tokens arrive in real-time, stop_reason tells us if tool was used
         with self.client.messages.stream(
             model="claude-haiku-4-5-20251001",
             max_tokens=2048,
             system=system_message,
+            tools=TOOLS,
             messages=messages,
         ) as stream:
-            for text in stream.text_stream:
-                yield text
+            # Yield text tokens as they arrive (sync generator, runs in thread pool)
+            yield from stream.text_stream
+            
+            # Get final message to check if a tool was used
+            final_message = stream.get_final_message()
+        
+        # Check if Claude wants to use a tool
+        if final_message.stop_reason == "tool_use":
+            # Find and execute the tool
+            for content_block in final_message.content:
+                if content_block.type == "tool_use":
+                    tool_name = content_block.name
+                    tool_inputs = content_block.input
+                    tool_use_id = content_block.id
+                    
+                    # Execute the tool (synchronous)
+                    try:
+                        tool_result = execute_tool(tool_name, tool_inputs)
+                    except Exception as e:
+                        tool_result = f"Error executing tool {tool_name}: {str(e)}"
+                    
+                    # Add the assistant response and tool result to messages
+                    messages.append({"role": "assistant", "content": final_message.content})
+                    messages.append({
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": tool_use_id,
+                                "content": tool_result,
+                            }
+                        ]
+                    })
+                    
+                    # Phase 2: Stream final response after tool execution
+                    with self.client.messages.stream(
+                        model="claude-haiku-4-5-20251001",
+                        max_tokens=2048,
+                        system=system_message,
+                        messages=messages,
+                    ) as stream2:
+                        yield from stream2.text_stream
+                    
+                    break  # Only handle the first tool
 
     def get_summary(self, text: str, max_tokens: int = 200) -> str:
         """Get a summary of text (used for document processing)."""

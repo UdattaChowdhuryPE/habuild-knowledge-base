@@ -183,6 +183,36 @@ class SupabaseDB:
         """Delete a document."""
         self.client.table("documents").delete().eq("id", document_id).execute()
 
+    def count_employees(self, location: Optional[str] = None) -> int:
+        """Count employees, optionally filtered by location."""
+        query = self.client.table("employees").select("id", count="exact")
+        if location:
+            query = query.eq("location", location)
+        response = query.execute()
+        return response.count if hasattr(response, 'count') else len(response.data) if response.data else 0
+
+    def find_employee_by_name(self, name: str) -> List[Dict[str, Any]]:
+        """Find employees by name (partial match, case-insensitive)."""
+        response = (
+            self.client.table("employees")
+            .select("name, email, location, role")
+            .ilike("name", f"%{name}%")
+            .order("name", desc=False)
+            .execute()
+        )
+        return response.data if response.data else []
+
+    def list_employees_by_location(self, location: str) -> List[Dict[str, Any]]:
+        """List all employees at a given location."""
+        response = (
+            self.client.table("employees")
+            .select("name, email, location, role")
+            .eq("location", location)
+            .order("name", desc=False)
+            .execute()
+        )
+        return response.data if response.data else []
+
 
 # Global instance
 db = SupabaseDB()
