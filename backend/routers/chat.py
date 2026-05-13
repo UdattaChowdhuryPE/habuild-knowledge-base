@@ -53,7 +53,8 @@ async def send_message(request: ChatRequest, current_user: dict = Depends(get_cu
             try:
                 for token in llm_service.stream_chat(request.question, context, conversation_history):
                     full_response += token
-                    yield f"data: {token}\n\n"
+                    safe_token = token.replace("\n", r"\n")
+                    yield f"data: {safe_token}\n\n"
 
                 # Store assistant message after streaming completes
                 db.add_message(request.conversation_id, "assistant", full_response)

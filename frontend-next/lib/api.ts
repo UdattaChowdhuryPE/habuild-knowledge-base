@@ -58,15 +58,13 @@ export async function* streamMessage(question: string, conversationId: string, l
     const { done, value } = await reader.read()
     if (done) break
     buffer += decoder.decode(value, { stream: true })
-    const events = buffer.split("\n\n")
-    buffer = events.pop() ?? ""
-    for (const event of events) {
-      for (const line of event.split("\n")) {
-        if (line.startsWith("data: ")) {
-          const token = line.slice(6)
-          if (token === "[DONE]") return
-          if (!token.startsWith("[ERROR]")) yield token
-        }
+    const lines = buffer.split("\n")
+    buffer = lines.pop() ?? ""
+    for (const line of lines) {
+      if (line.startsWith("data: ")) {
+        const raw = line.slice(6)
+        if (raw === "[DONE]") return
+        if (!raw.startsWith("[ERROR]")) yield raw.replace(/\\n/g, "\n")
       }
     }
   }
