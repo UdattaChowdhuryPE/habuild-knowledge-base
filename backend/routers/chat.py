@@ -75,13 +75,15 @@ async def send_message(request: ChatRequest, current_user: dict = Depends(get_cu
                     full_response += token
                     safe_token = token.replace("\n", r"\n")
                     yield f"data: {safe_token}\n\n"
-
-                # Store assistant message after streaming completes
-                db.add_message(request.conversation_id, "assistant", full_response)
                 yield "data: [DONE]\n\n"
 
             except Exception as e:
                 yield f"data: [ERROR] {str(e)}\n\n"
+
+            finally:
+                # Store assistant message always, even on partial responses from errors
+                if full_response:
+                    db.add_message(request.conversation_id, "assistant", full_response)
 
         return StreamingResponse(
             response_generator(),

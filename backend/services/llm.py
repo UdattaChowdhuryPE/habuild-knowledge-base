@@ -115,42 +115,34 @@ DO NOT:
         
         # Check if Claude wants to use a tool
         if final_message.stop_reason == "tool_use":
-            # Find and execute the tool
+            # Collect ALL tool results (Anthropic API requires all tool_use blocks paired with tool_results)
+            tool_results = []
             for content_block in final_message.content:
                 if content_block.type == "tool_use":
-                    tool_name = content_block.name
-                    tool_inputs = content_block.input
-                    tool_use_id = content_block.id
-                    
-                    # Execute the tool (synchronous)
                     try:
-                        tool_result = execute_tool(tool_name, tool_inputs)
+                        tool_result = execute_tool(content_block.name, content_block.input)
                     except Exception as e:
-                        tool_result = f"Error executing tool {tool_name}: {str(e)}"
-                    
-                    # Add the assistant response and tool result to messages
-                    messages.append({"role": "assistant", "content": final_message.content})
-                    messages.append({
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "tool_result",
-                                "tool_use_id": tool_use_id,
-                                "content": tool_result,
-                            }
-                        ]
+                        tool_result = f"Error executing {content_block.name}: {str(e)}"
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": content_block.id,
+                        "content": tool_result,
                     })
-                    
-                    # Phase 2: Stream final response after tool execution
-                    with self.client.messages.stream(
-                        model="claude-haiku-4-5-20251001",
-                        max_tokens=2048,
-                        system=system_message,
-                        messages=messages,
-                    ) as stream2:
-                        yield from stream2.text_stream
-                    
-                    break  # Only handle the first tool
+            
+            if tool_results:
+                # Add the assistant response and all tool results to messages
+                messages.append({"role": "assistant", "content": final_message.content})
+                messages.append({"role": "user", "content": tool_results})
+                
+                # Phase 2: Stream final response after tool execution
+                with self.client.messages.stream(
+                    model="claude-haiku-4-5-20251001",
+                    max_tokens=2048,
+                    system=system_message,
+                    tools=TOOLS,
+                    messages=messages,
+                ) as stream2:
+                    yield from stream2.text_stream
 
     def get_summary(self, text: str, max_tokens: int = 200) -> str:
         """Get a summary of text (used for document processing)."""
