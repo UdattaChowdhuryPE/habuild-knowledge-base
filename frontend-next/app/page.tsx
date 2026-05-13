@@ -217,17 +217,19 @@ export default function HabuildHRPortal() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar
-        currentPage={currentPage}
-        onPageChange={setCurrentPage}
-        isSignedIn={authState === "authenticated"}
-        user={user}
-        onSignOut={handleSignOut}
-        conversations={conversations}
-        activeConversationId={conversationId}
-        onNewChat={handleNewChat}
-        onSelectConversation={handleSelectConversation}
-      />
+      {authState === "authenticated" && user && (
+        <Sidebar
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+          isSignedIn={authState === "authenticated"}
+          user={user}
+          onSignOut={handleSignOut}
+          conversations={conversations}
+          activeConversationId={conversationId}
+          onNewChat={handleNewChat}
+          onSelectConversation={handleSelectConversation}
+        />
+      )}
 
       <main className="flex-1 overflow-hidden">
         {authState === "unauthenticated" && <SignInView error={authError} />}
