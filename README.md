@@ -5,7 +5,7 @@ An internal knowledge base and Q&A assistant for Habuild — covering company po
 ## Features
 
 - **Location-aware Q&A**: Automatic location assignment from employee directory; employees can only access HR policies for their assigned location
-- **Semantic Search (RAG)**: Vector embeddings (Voyage AI) index all policies and documents by location; search retrieves only location-relevant content
+- **Semantic Search (RAG)**: Vector embeddings (Voyage AI) index all policies and documents by location; documents are chunked at 500 tokens with 100-token overlap; search retrieves only location-relevant content
 - **Cross-location Guard**: LLM system prompt enforces a refusal rule — if an employee asks about policies from a different location, Claude returns a standard HR redirect message
 - **Real-time Streaming**: Chat responses stream via Server-Sent Events (SSE) for responsive UX
 - **Admin Panel**: Upload and manage HR policies and documents; manage employee directory
@@ -15,7 +15,7 @@ An internal knowledge base and Q&A assistant for Habuild — covering company po
 
 ### Prerequisites
 
-- Python 3.10+
+- Python 3.11+
 - Node.js 18+
 - `uv` package manager (`pip install uv` or `brew install uv`)
 - Supabase account with a project created
@@ -24,8 +24,11 @@ An internal knowledge base and Q&A assistant for Habuild — covering company po
 ### Install Dependencies
 
 ```bash
-# Install all Python and Node dependencies
+# Python dependencies
 uv sync
+
+# Frontend dependencies
+cd frontend-next && npm install
 ```
 
 ### Configure Environment
@@ -33,11 +36,18 @@ uv sync
 Copy `.env.example` to `.env` and fill in:
 
 ```bash
-ANTHROPIC_API_KEY=sk-...         # Claude API key from Anthropic
-VOYAGE_API_KEY=...               # Voyage AI API key
-SUPABASE_URL=https://...         # Your Supabase project URL
-SUPABASE_ANON_KEY=...            # Supabase anonymous key
-SUPABASE_SERVICE_ROLE_KEY=...    # Supabase service role key (for migrations)
+# Backend
+ANTHROPIC_API_KEY=sk-...              # Claude API key from Anthropic
+VOYAGE_API_KEY=...                    # Voyage AI API key
+SUPABASE_URL=https://...              # Your Supabase project URL
+SUPABASE_ANON_KEY=...                 # Supabase anonymous key
+SUPABASE_SERVICE_ROLE_KEY=...         # Supabase service role key (for migrations)
+ALLOWED_EMAIL_DOMAINS=habuild.in      # Comma-separated allowed email domains (e.g., @company.com)
+
+# Frontend
+NEXT_PUBLIC_SUPABASE_URL=https://...  # Supabase URL for frontend client
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...     # Supabase anon key for frontend client
+BACKEND_URL=http://localhost:8000     # Backend API URL (optional, defaults to localhost:8000)
 ```
 
 ### Run Locally
@@ -60,7 +70,6 @@ Visit http://localhost:3000 in your browser.
 - **`routers/`** — API endpoints:
   - `auth.py` — Login, profile completion with auto-location assignment
   - `chat.py` — Start conversation, stream chat messages with location-based context
-  - `policies.py` — CRUD for HR policies
   - `documents.py` — CRUD for documents
   - `employees.py` — Employee directory management
 - **`services/`**:
@@ -68,6 +77,8 @@ Visit http://localhost:3000 in your browser.
   - `llm.py` — Claude streaming with location-aware system prompts
   - `rag.py` — Document chunking (500 tokens, 100 overlap) and retrieval
   - `embeddings.py` — Voyage AI embedding wrapper
+  - `tools.py` — Claude tool-use definitions for employee and policy lookups
+- **`dependencies.py`** — FastAPI dependency injection helpers (e.g., `get_current_user`)
 - **`models.py`** — Pydantic request/response schemas
 
 ### Frontend (`frontend-next/`)
@@ -80,6 +91,7 @@ Visit http://localhost:3000 in your browser.
   - `documents-view.tsx` — View uploaded documents
   - `sidebar.tsx` — Navigation between views
 - **`lib/api.ts`** — TypeScript client for backend API
+- **`lib/supabase.ts`** — Supabase browser client for frontend auth
 - **`next.config.mjs`** — Proxy `/api/*` to backend
 
 ### Database Schema (`supabase/migrations/`)
@@ -91,9 +103,17 @@ Visit http://localhost:3000 in your browser.
   - `chunks` — Document chunks with embedding vector and `locations` array for filtering
   - `pgvector` RPC `match_chunks_by_location()` — Vector search filtered by location
 
-- **`002_add_policies_documents.sql`**:
-  - `policies` — HR policy documents with `location` field
+- **`002_add_documents.sql`**:
   - `documents` — Uploaded company documents
+
+- **`003_normalize_gurugram.sql`**:
+  - Normalizes location name spelling for Gurugram
+
+- **`004_add_employees_table.sql`**:
+  - `employees` — Employee directory for location assignment
+
+- **`005_update_chunks_vector_dim.sql`**:
+  - Updates vector dimension for `chunks` embeddings
 
 ## How Location-Based Access Control Works
 
@@ -146,8 +166,8 @@ For policies at other locations, please reach out to HR directly."
 ### 1. Ingestion
 
 1. Admin uploads HR policies or documents (CSV, PDF, TXT)
-2. **Backend** extracts text and splits into chunks (500 tokens, 100 overlap)
-3. **Voyage AI** embeds each chunk (1024-dimensional vector)
+2. **Backend** extracts text and splits into chunks (500 tokens, split at paragraph/sentence boundaries, with 100-token tail overlap for context continuity)
+3. **Voyage AI** embeds each chunk (512-dimensional vector)
 4. Chunks stored in Supabase with metadata: `location`, `document_id`, `embedding`
 
 ### 2. Chat Query
@@ -168,15 +188,14 @@ For policies at other locations, please reach out to HR directly."
 ## API Endpoints
 
 ### Authentication
-- `POST /auth/login` — Google OAuth callback
-- `POST /auth/complete-profile` — Auto-assign location and create profile (no body)
+- `GET /auth/me` — Get authenticated user's profile
+- `POST /auth/complete-profile` — Create profile with location auto-assigned from employee directory (no body)
 
 ### Chat
 - `POST /chat/start` — Create conversation (returns `conversation_id`)
 - `POST /chat/message` — Stream chat message (SSE response)
 
 ### Admin
-- `GET/POST /policies` — Manage HR policies
 - `GET/POST /documents` — Upload and manage documents
 - `GET/POST /employees` — Employee directory management
 
@@ -196,9 +215,9 @@ For policies at other locations, please reach out to HR directly."
 ## Development Notes
 
 - **Claude model**: `claude-haiku-4-5-20251001`
-- **Embeddings**: Voyage AI `voyage-3-lite` (1024 dimensions)
+- **Embeddings**: Voyage AI `voyage-3-lite` (512 dimensions)
 - **Conversation context**: Last 10 messages per request
-- **Chunk size**: 500 tokens with 100-token overlap
+- **Chunk size**: 500 tokens with 100-token tail overlap between adjacent chunks (split at paragraph/sentence boundaries)
 - **No automated tests yet** — testing is manual via UI or curl
 
 ## Security
