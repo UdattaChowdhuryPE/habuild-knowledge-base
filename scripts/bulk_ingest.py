@@ -66,6 +66,12 @@ def main():
     parser.add_argument(
         "--dry-run", action="store_true", help="Preview files without ingesting"
     )
+    parser.add_argument(
+        "--files",
+        nargs="+",
+        default=None,
+        help="Specific filenames to ingest (within --dir). If omitted, all eligible files are ingested.",
+    )
     args = parser.parse_args()
 
     # Normalize and validate locations
@@ -84,6 +90,11 @@ def main():
     files = sorted(
         [p for p in dir_path.rglob("*") if p.suffix.lower() in exts and p.is_file()]
     )
+
+    # Filter by specific filenames if provided
+    if args.files:
+        allowed = set(args.files)
+        files = [p for p in files if p.name in allowed]
 
     print(f"Found {len(files)} file(s) in '{args.dir}'")
 
