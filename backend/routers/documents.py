@@ -1,3 +1,4 @@
+import structlog
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
 from typing import List, Optional
 import uuid
@@ -7,6 +8,8 @@ from docx import Document
 from backend.services.db import db
 from backend.services.rag import index_document
 from backend.dependencies import get_current_user, require_hr_role
+
+log = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -70,16 +73,23 @@ async def upload_document(
 ):
     """Upload a document and index it for RAG."""
     try:
+        document_id = str(uuid.uuid4())
+        structlog.contextvars.bind_contextvars(
+            document_id=document_id,
+            document_title=title
+        )
+        
         location_list = [loc.strip().title() for loc in locations if loc.strip()]
 
         # Read file
         file_bytes = await file.read()
+        log.info("document.upload.extract_start", filename=file.filename, size_bytes=len(file_bytes))
 
         # Extract text
         text_content = extract_text_from_file(file, file_bytes)
+        log.info("document.upload.extracted", char_count=len(text_content))
 
         # Upload to Supabase Storage
-        document_id = str(uuid.uuid4())
         file_path = f"documents/{document_id}/{file.filename}"
 
         storage_response = db.client.storage.from_("documents").upload(
@@ -100,7 +110,7 @@ async def upload_document(
             locations=location_list
         )
 
-        # Index document content for RAG
+        # Index document content for RAG (already logs internally)
         index_document(
             source_id=document["id"],
             source_type="document",
@@ -108,7 +118,8 @@ async def upload_document(
             text=text_content,
             locations=location_list
         )
-
+        
+        log.info("document.upload.complete", document_id=document["id"])
         return {"document": document}
 
     except Exception as e:

@@ -5,8 +5,10 @@ from dotenv import load_dotenv
 # Must load env before any service imports that read os.getenv at module level
 load_dotenv(Path(__file__).parent / ".env")
 
+from backend.observability import configure_logging, configure_tracing
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from backend.middleware.request_logging import RequestLoggingMiddleware
 from backend.routers import chat, documents, employees, auth
 
 app = FastAPI(
@@ -14,6 +16,10 @@ app = FastAPI(
     description="Backend API for the Habuild HR Policy Assistant",
     version="1.0.0"
 )
+
+# Configure observability
+configure_logging(os.getenv("LOG_LEVEL", "INFO"))
+configure_tracing(app)
 
 # Configure CORS
 frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
@@ -24,6 +30,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register request logging middleware (runs after CORS due to reverse order)
+app.add_middleware(RequestLoggingMiddleware)
 
 # Include routers
 app.include_router(chat.router)

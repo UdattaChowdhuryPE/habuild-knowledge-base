@@ -1,6 +1,22 @@
 import os
+import time
+from contextlib import contextmanager
 from supabase import create_client, Client
 from typing import Optional, List, Dict, Any
+import structlog
+
+log = structlog.get_logger(__name__)
+
+
+@contextmanager
+def _timed(operation: str, **log_kwargs):
+    """Context manager to log operation timing at DEBUG level."""
+    t = time.perf_counter()
+    try:
+        yield
+    finally:
+        duration_ms = round((time.perf_counter() - t) * 1000, 1)
+        log.debug("db.call", operation=operation, duration_ms=duration_ms, **log_kwargs)
 
 
 class SupabaseDB:
@@ -140,46 +156,59 @@ class SupabaseDB:
 
     def get_conversation_messages(self, conversation_id: str, limit: int = 10) -> List[Dict[str, Any]]:
         """Get messages for a conversation."""
-        response = self.client.table("messages").select("*").eq("conversation_id", conversation_id).order("created_at", desc=False).limit(limit).execute()
+        with _timed("get_conversation_messages", conversation_id=conversation_id, limit=limit):
+            response = self.client.table("messages").select("*").eq("conversation_id", conversation_id).order("created_at", desc=False).limit(limit).execute()
+            rows_returned = len(response.data) if response.data else 0
+            log.debug("get_conversation_messages.result", rows=rows_returned)
         return response.data if response.data else []
 
     def add_message(self, conversation_id: str, role: str, content: str) -> Dict[str, Any]:
         """Add a message to a conversation."""
-        response = self.client.table("messages").insert({
-            "conversation_id": conversation_id,
-            "role": role,
-            "content": content,
-        }).execute()
+        with _timed("add_message", conversation_id=conversation_id, role=role):
+            response = self.client.table("messages").insert({
+                "conversation_id": conversation_id,
+                "role": role,
+                "content": content,
+            }).execute()
         return response.data[0] if response.data else None
 
     def store_chunks(self, source_id: str, source_type: str, source_title: str, chunks_data: List[Dict[str, Any]]) -> None:
         """Store chunks with embeddings."""
-        # Delete old chunks for this source
-        self.client.table("chunks").delete().eq("source_id", source_id).eq("source_type", source_type).execute()
+        with _timed("store_chunks", source_id=source_id, chunk_count=len(chunks_data)):
+            # Delete old chunks for this source
+            self.client.table("chunks").delete().eq("source_id", source_id).eq("source_type", source_type).execute()
 
-        # Insert new chunks, formatting embeddings as pgvector
-        if chunks_data:
-            formatted_chunks = []
-            for chunk in chunks_data:
-                formatted_chunk = chunk.copy()
-                # Format embedding as pgvector string [a,b,c,...]
-                if isinstance(formatted_chunk.get('embedding'), list):
-                    formatted_chunk['embedding'] = f"[{','.join(str(float(x)) for x in formatted_chunk['embedding'])}]"
-                formatted_chunks.append(formatted_chunk)
-            self.client.table("chunks").insert(formatted_chunks).execute()
+            # Insert new chunks, formatting embeddings as pgvector
+            if chunks_data:
+                formatted_chunks = []
+                for chunk in chunks_data:
+                    formatted_chunk = chunk.copy()
+                    # Format embedding as pgvector string [a,b,c,...]
+                    if isinstance(formatted_chunk.get('embedding'), list):
+                        formatted_chunk['embedding'] = f"[{','.join(str(float(x)) for x in formatted_chunk['embedding'])}]"
+                    formatted_chunks.append(formatted_chunk)
+                self.client.table("chunks").insert(formatted_chunks).execute()
 
     def search_chunks_by_location(self, query_embedding: List[float], location: str, top_k: int = 5) -> List[Dict[str, Any]]:
         """Search for relevant chunks using vector similarity filtered by location."""
-        # Use Supabase's vector similarity search
-        # We'll use the direct SQL RPC approach with pgvector
-        response = self.client.rpc(
-            "match_chunks_by_location",
-            {
-                "query_embedding": query_embedding,
-                "match_count": top_k,
-                "location_filter": location,
-            }
-        ).execute()
+        with _timed("search_chunks_by_location", location=location, top_k=top_k):
+            # Use Supabase's vector similarity search
+            # We'll use the direct SQL RPC approach with pgvector
+            response = self.client.rpc(
+                "match_chunks_by_location",
+                {
+                    "query_embedding": query_embedding,
+                    "match_count": top_k,
+                    "location_filter": location,
+                }
+            ).execute()
+            rows_returned = len(response.data) if response.data else 0
+            log.info(
+                "search_chunks_by_location.result",
+                location=location,
+                top_k=top_k,
+                rows_returned=rows_returned,
+            )
         return response.data if response.data else []
 
     def get_documents(self, location: Optional[str] = None) -> List[Dict[str, Any]]:

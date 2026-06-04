@@ -1,8 +1,13 @@
 import tiktoken
 import re
+import structlog
 from typing import List, Dict, Any
 from .embeddings import embeddings_service
 from .db import db
+from backend.observability import get_tracer
+
+log = structlog.get_logger(__name__)
+tracer = get_tracer(__name__)
 
 
 def _split_by_sentences(text: str) -> List[str]:
@@ -49,6 +54,7 @@ def semantic_chunk_text(text: str, max_tokens: int = 500, overlap_tokens: int = 
         return []
 
     encoding = tiktoken.get_encoding("cl100k_base")
+    input_chars = len(text)
     
     # Split on paragraph boundaries (double newlines)
     paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
@@ -105,6 +111,7 @@ def semantic_chunk_text(text: str, max_tokens: int = 500, overlap_tokens: int = 
     if current_chunk.strip():
         chunks.append(current_chunk.strip())
     
+    log.debug("chunker.complete", input_chars=input_chars, chunks_produced=len(chunks))
     return chunks
 
 
@@ -118,26 +125,33 @@ def index_document(
     """
     Chunk document, embed chunks, and store in database.
     """
-    chunks = semantic_chunk_text(text, max_tokens=500)
+    with tracer.start_as_current_span("rag.index_document") as span:
+        span.set_attribute("source_id", source_id)
+        span.set_attribute("source_type", source_type)
+        
+        chunks = semantic_chunk_text(text, max_tokens=500)
+        log.info("index_document.chunked", chunks=len(chunks), source_id=source_id)
 
-    # Embed all chunks
-    embeddings = embeddings_service.embed_batch(chunks, input_type="document")
+        # Embed all chunks
+        embeddings = embeddings_service.embed_batch(chunks, input_type="document")
+        log.info("index_document.embedded", embedded=len(embeddings), source_id=source_id)
 
-    # Prepare data for storage
-    chunks_data = []
-    for chunk_content, embedding in zip(chunks, embeddings):
-        if embedding:  # Only store if embedding succeeded
-            chunks_data.append({
-                "source_id": source_id,
-                "source_type": source_type,
-                "source_title": source_title,
-                "content": chunk_content,
-                "embedding": embedding,
-                "locations": locations,
-            })
+        # Prepare data for storage
+        chunks_data = []
+        for chunk_content, embedding in zip(chunks, embeddings):
+            if embedding:  # Only store if embedding succeeded
+                chunks_data.append({
+                    "source_id": source_id,
+                    "source_type": source_type,
+                    "source_title": source_title,
+                    "content": chunk_content,
+                    "embedding": embedding,
+                    "locations": locations,
+                })
 
-    # Store in database
-    db.store_chunks(source_id, source_type, source_title, chunks_data)
+        # Store in database
+        db.store_chunks(source_id, source_type, source_title, chunks_data)
+        log.info("index_document.stored", source_id=source_id, stored=len(chunks_data))
 
 
 def search_chunks(question: str, location: str, top_k: int = 5) -> List[Dict[str, Any]]:
@@ -145,46 +159,67 @@ def search_chunks(question: str, location: str, top_k: int = 5) -> List[Dict[str
     Embed query and search for relevant chunks using vector similarity.
     Then rerank the top candidates using Voyage's reranker.
     """
-    query_embedding = embeddings_service.embed_query(question)
+    with tracer.start_as_current_span("rag.search_chunks"):
+        query_embedding = embeddings_service.embed_query(question)
 
-    if not query_embedding:
-        return []
+        if not query_embedding:
+            return []
 
-    # Fetch more candidates than top_k to give reranker more options
-    candidates = db.search_chunks_by_location(query_embedding, location, top_k=top_k * 4)
+        # Fetch more candidates than top_k to give reranker more options
+        candidates = db.search_chunks_by_location(query_embedding, location, top_k=top_k * 4)
 
-    if not candidates:
-        return []
+        if not candidates:
+            return []
 
-    # Extract chunk texts for reranking
-    chunk_texts = [chunk.get("content", "") for chunk in candidates]
-    
-    # Rerank using Voyage's reranker
-    reranked = embeddings_service.rerank(question, chunk_texts, top_k=top_k)
-    
-    if not reranked:
-        # If reranking fails, fall back to vector search results
-        return candidates[:top_k]
-    
-    # Reorder chunks by reranker scores
-    reranked_chunks = [candidates[r["index"]] for r in reranked]
-    
-    return reranked_chunks
+        # Extract chunk texts for reranking
+        chunk_texts = [chunk.get("content", "") for chunk in candidates]
+        
+        # Rerank using Voyage's reranker
+        reranked = embeddings_service.rerank(question, chunk_texts, top_k=top_k)
+        
+        if not reranked:
+            # If reranking fails, fall back to vector search results
+            reranked_chunks = candidates[:top_k]
+            reranker_ran = False
+        else:
+            # Reorder chunks by reranker scores
+            reranked_chunks = [candidates[r["index"]] for r in reranked]
+            reranker_ran = True
+        
+        # Log retrieval quality signals
+        top_scores = [
+            round(r.get("score", 0), 4) for r in reranked[:3]
+        ] if reranked else []
+        source_titles = list({c.get("source_title") for c in reranked_chunks})
+        
+        log.info(
+            "rag.retrieval.complete",
+            question_len=len(question),
+            location=location,
+            candidates_fetched=len(candidates),
+            reranker_ran=reranker_ran,
+            chunks_returned=len(reranked_chunks),
+            top_scores=top_scores,
+            source_titles=source_titles,
+        )
+        
+        return reranked_chunks
 
 
 def get_relevant_context(question: str, location: str, top_k: int = 5) -> str:
     """
     Search for relevant chunks and format them as context for the LLM.
     """
-    chunks = search_chunks(question, location, top_k)
+    with tracer.start_as_current_span("rag.get_relevant_context"):
+        chunks = search_chunks(question, location, top_k)
 
-    if not chunks:
-        return "No relevant documents found for your location."
+        if not chunks:
+            return "No relevant documents found for your location."
 
-    context = "Here are the relevant policy documents:\n\n"
-    for i, chunk in enumerate(chunks, 1):
-        source_title = chunk.get("source_title", "Unknown")
-        content = chunk.get("content", "")
-        context += f"[{i}] From: {source_title}\n{content}\n\n"
+        context = "Here are the relevant policy documents:\n\n"
+        for i, chunk in enumerate(chunks, 1):
+            source_title = chunk.get("source_title", "Unknown")
+            content = chunk.get("content", "")
+            context += f"[{i}] From: {source_title}\n{content}\n\n"
 
-    return context
+        return context

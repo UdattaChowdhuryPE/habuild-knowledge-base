@@ -1,3 +1,5 @@
+import time
+import structlog
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from typing import List, Dict, Any
@@ -6,6 +8,8 @@ from backend.services.db import db
 from backend.services.rag import get_relevant_context
 from backend.services.llm import llm_service
 from backend.dependencies import get_current_user
+
+log = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -31,6 +35,12 @@ async def send_message(request: ChatRequest, current_user: dict = Depends(get_cu
     Send a message and get a streaming response from Claude.
     """
     try:
+        # Bind user to context for logging
+        structlog.contextvars.bind_contextvars(
+            user_id=current_user["id"],
+            user_email=current_user.get("email", "unknown")
+        )
+        
         # Verify conversation belongs to current user and exists
         conversation = db.get_conversation(request.conversation_id)
         if not conversation or conversation["user_id"] != current_user["id"]:
@@ -70,6 +80,7 @@ async def send_message(request: ChatRequest, current_user: dict = Depends(get_cu
         # Stream response from Claude
         def response_generator():
             full_response = ""
+            t_stream_start = time.perf_counter()
             try:
                 for token in llm_service.stream_chat(request.question, context, conversation_history, user_location):
                     full_response += token
@@ -84,6 +95,15 @@ async def send_message(request: ChatRequest, current_user: dict = Depends(get_cu
                 # Store assistant message always, even on partial responses from errors
                 if full_response:
                     db.add_message(request.conversation_id, "assistant", full_response)
+                
+                stream_duration_ms = round((time.perf_counter() - t_stream_start) * 1000, 1)
+                log.info(
+                    "chat.stream.complete",
+                    conversation_id=request.conversation_id,
+                    question_len=len(request.question),
+                    response_len=len(full_response),
+                    stream_duration_ms=stream_duration_ms,
+                )
 
         return StreamingResponse(
             response_generator(),

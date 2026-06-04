@@ -1,7 +1,13 @@
 import os
+import time
+import structlog
 from anthropic import Anthropic
 from typing import List, Dict, Any, Generator
 from backend.services.tools import TOOLS, execute_tool
+from backend.observability import get_tracer
+
+log = structlog.get_logger(__name__)
+tracer = get_tracer(__name__)
 
 
 class LLMService:
@@ -108,25 +114,44 @@ DO NOT:
 
         # Phase 1: Stream with tools enabled
         # Tokens arrive in real-time, stop_reason tells us if tool was used
-        with self.client.messages.stream(
+        t_phase1_start = time.perf_counter()
+        with tracer.start_as_current_span("llm.phase1.stream") as span_phase1:
+            with self.client.messages.stream(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=2048,
+                system=system_message,
+                tools=TOOLS,
+                messages=messages,
+            ) as stream:
+                # Yield text tokens as they arrive (sync generator, runs in thread pool)
+                yield from stream.text_stream
+                
+                # Get final message to check if a tool was used
+                final_message = stream.get_final_message()
+        
+        phase1_ms = round((time.perf_counter() - t_phase1_start) * 1000, 1)
+        span_phase1.set_attribute("llm.model", "claude-haiku-4-5-20251001")
+        span_phase1.set_attribute("llm.stop_reason", final_message.stop_reason)
+        span_phase1.set_attribute("llm.input_tokens", final_message.usage.input_tokens)
+        span_phase1.set_attribute("llm.output_tokens", final_message.usage.output_tokens)
+        
+        log.info(
+            "llm.phase1.complete",
             model="claude-haiku-4-5-20251001",
-            max_tokens=2048,
-            system=system_message,
-            tools=TOOLS,
-            messages=messages,
-        ) as stream:
-            # Yield text tokens as they arrive (sync generator, runs in thread pool)
-            yield from stream.text_stream
-            
-            # Get final message to check if a tool was used
-            final_message = stream.get_final_message()
+            stop_reason=final_message.stop_reason,
+            input_tokens=final_message.usage.input_tokens,
+            output_tokens=final_message.usage.output_tokens,
+            phase1_ms=phase1_ms,
+        )
         
         # Check if Claude wants to use a tool
         if final_message.stop_reason == "tool_use":
             # Collect ALL tool results (Anthropic API requires all tool_use blocks paired with tool_results)
             tool_results = []
+            tool_names = []
             for content_block in final_message.content:
                 if content_block.type == "tool_use":
+                    tool_names.append(content_block.name)
                     try:
                         tool_result = execute_tool(content_block.name, content_block.input)
                     except Exception as e:
@@ -137,33 +162,61 @@ DO NOT:
                         "content": tool_result,
                     })
             
+            if tool_names:
+                log.info(
+                    "llm.tool_use",
+                    tools_called=tool_names,
+                    tool_count=len(tool_names),
+                )
+            
             if tool_results:
                 # Add the assistant response and all tool results to messages
                 messages.append({"role": "assistant", "content": final_message.content})
                 messages.append({"role": "user", "content": tool_results})
                 
                 # Phase 2: Stream final response after tool execution
-                with self.client.messages.stream(
+                t_phase2_start = time.perf_counter()
+                with tracer.start_as_current_span("llm.phase2.stream") as span_phase2:
+                    with self.client.messages.stream(
+                        model="claude-haiku-4-5-20251001",
+                        max_tokens=2048,
+                        system=system_message,
+                        tools=TOOLS,
+                        messages=messages,
+                    ) as stream2:
+                        yield from stream2.text_stream
+                        final_message_2 = stream2.get_final_message()
+                
+                phase2_ms = round((time.perf_counter() - t_phase2_start) * 1000, 1)
+                span_phase2.set_attribute("llm.model", "claude-haiku-4-5-20251001")
+                span_phase2.set_attribute("llm.stop_reason", final_message_2.stop_reason)
+                span_phase2.set_attribute("llm.input_tokens", final_message_2.usage.input_tokens)
+                span_phase2.set_attribute("llm.output_tokens", final_message_2.usage.output_tokens)
+                
+                log.info(
+                    "llm.phase2.complete",
                     model="claude-haiku-4-5-20251001",
-                    max_tokens=2048,
-                    system=system_message,
-                    tools=TOOLS,
-                    messages=messages,
-                ) as stream2:
-                    yield from stream2.text_stream
+                    stop_reason=final_message_2.stop_reason,
+                    input_tokens=final_message_2.usage.input_tokens,
+                    output_tokens=final_message_2.usage.output_tokens,
+                    phase2_ms=phase2_ms,
+                )
 
     def get_summary(self, text: str, max_tokens: int = 200) -> str:
         """Get a summary of text (used for document processing)."""
-        response = self.client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=max_tokens,
-            messages=[
-                {
-                    "role": "user",
-                    "content": f"Summarize this text concisely:\n\n{text}"
-                }
-            ],
-        )
+        with tracer.start_as_current_span("llm.get_summary") as span:
+            response = self.client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=max_tokens,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": f"Summarize this text concisely:\n\n{text}"
+                    }
+                ],
+            )
+            span.set_attribute("llm.input_tokens", response.usage.input_tokens)
+            span.set_attribute("llm.output_tokens", response.usage.output_tokens)
         return response.content[0].text
 
 
