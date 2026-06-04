@@ -1,0 +1,114 @@
+# Habuild HR Policy Manual
+
+## Leave Policy
+
+### Casual Leave
+
+Eligible employees are entitled to 12 casual leaves per calendar year. Casual leaves are intended for personal emergencies, health issues, or urgent personal matters.
+
+Eligibility:
+- Full-time employees with at least 3 months of service
+- Pro-rata for new hires in their first year
+
+Application:
+- Must be requested at least 24 hours in advance
+- Requests submitted via HR portal or email to hr@habuild.in
+- Approval is subject to business needs
+
+Carryforward:
+- Unused casual leaves do not carry forward to the next year
+- Maximum 2 leaves can be accumulated if unused by quarter-end
+
+### Sick Leave
+
+Sick leaves are provided for medical emergencies and health-related absences. Employees are entitled to 10 paid sick leaves per calendar year.
+
+Medical Certificate Requirement:
+- For absences of 3 consecutive days or more, a medical certificate is mandatory
+- Certificate must be issued by a registered medical practitioner
+- Should be submitted within 2 working days of return
+
+Approval Process:
+- Same-day application allowed if emergent
+- Retrospective applications allowed for unexpected illnesses
+- HR reviews and approves applications within 24 hours
+
+Documentation:
+- Medical certificate must be in original or attested copy
+- Digital copies accepted via secure email
+
+### Leave Without Pay (LWP)
+
+Employees may request LWP for personal reasons beyond other leave categories. LWP is unpaid and should be approved by their manager and HR.
+
+Eligibility:
+- Available after all paid leaves are exhausted
+- Limited to 10 days per calendar year
+- Not applicable during probation period (first 6 months)
+
+### Notice Period Policy
+
+Notice period is the advance notification required for resignation or involuntary separation.
+
+Standard Notice Periods:
+- Junior Level (0-3 years): 15 days
+- Senior Level (3-7 years): 30 days
+- Management Level (7+ years): 60 days
+
+During Notice Period:
+- Employee remains employed and receives full salary
+- All benefits continue as normal
+- Employee is expected to complete handover tasks
+- Non-compete clause becomes effective upon resignation
+
+Waiver:
+- Notice period can be waived at management discretion
+- Waiver is not a right and depends on business requirements
+
+## Location-Specific Policies
+
+### Gurugram Office
+
+Gurugram office is located at Plot No. 123, Tech Park, Sector 44, Gurugram, Haryana 122001.
+
+Working Hours: 9 AM to 6 PM, Monday to Friday
+Holidays: As per Haryana government calendar + 5 company holidays
+
+### Bangalore Office
+
+Bangalore office is located at Building A, Embassy Office Park, Bangalore 560095.
+
+Working Hours: 9:30 AM to 6:30 PM, Monday to Friday
+Holidays: As per Karnataka government calendar + 5 company holidays
+
+### Remote Work
+
+Eligible employees may work remotely up to 3 days per week, subject to manager approval and team requirements.
+
+## Medical Benefits
+
+All full-time employees and their dependents are covered under the company health insurance plan.
+
+Coverage:
+- In-patient hospitalization
+- Out-patient consultations (up to Rs. 5,000 per year)
+- Preventive health checkups (annual)
+- Maternity benefits
+
+Copay:
+- 20% copay for non-network hospitals
+- Zero copay for network hospitals
+
+## Grievance Redressal
+
+Employees can file grievances through the HR portal or directly with the HR department.
+
+Process:
+1. Submit written grievance within 10 days of the incident
+2. HR acknowledges receipt within 2 working days
+3. Investigation completed within 15 days
+4. Resolution communicated in writing
+
+Confidentiality:
+- All grievances are treated confidentially
+- No retaliation against employees filing genuine grievances

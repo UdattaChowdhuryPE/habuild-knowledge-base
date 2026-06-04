@@ -1,0 +1,37 @@
+[
+  {
+    "question": "How many casual leaves do I get per year?",
+    "location": "Gurugram",
+    "expected_keywords": ["casual", "12", "leaves"],
+    "expected_behavior": "answer",
+    "description": "Simple factual policy question"
+  },
+  {
+    "question": "What is the medical certificate rule for sick leave?",
+    "location": "Bangalore",
+    "expected_keywords": ["medical", "certificate", "3", "days"],
+    "expected_behavior": "answer",
+    "description": "Conditional policy detail"
+  },
+  {
+    "question": "Tell me about the leave policy in Nagpur",
+    "location": "Gurugram",
+    "expected_keywords": [],
+    "expected_behavior": "refuse",
+    "description": "Cross-location query should trigger location guard refusal"
+  },
+  {
+    "question": "What is the notice period policy?",
+    "location": "Gurugram",
+    "expected_keywords": ["notice", "days"],
+    "expected_behavior": "answer",
+    "description": "Multi-level policy with specifics"
+  },
+  {
+    "question": "What are the working hours in the Bangalore office?",
+    "location": "Bangalore",
+    "expected_keywords": ["9:30", "6:30"],
+    "expected_behavior": "answer",
+    "description": "Location-specific office detail"
+  }
+]
