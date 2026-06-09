@@ -10,7 +10,6 @@ def configure_logging(log_level: str = "INFO") -> None:
     shared_processors = [
         structlog.contextvars.merge_contextvars,  # pulls request_id, user_id, etc from context
         structlog.stdlib.add_log_level,
-        structlog.stdlib.add_logger_name,
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.StackInfoRenderer(),
     ]
