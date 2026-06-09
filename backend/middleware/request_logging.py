@@ -22,11 +22,12 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         duration_ms = round((time.perf_counter() - t_start) * 1000, 1)
 
-        log.info(
-            "request.complete",
-            status_code=response.status_code,
-            duration_ms=duration_ms,
-        )
+        if request.url.path != "/health":
+            log.info(
+                "request.complete",
+                status_code=response.status_code,
+                duration_ms=duration_ms,
+            )
 
         response.headers["X-Request-ID"] = request_id
         return response
