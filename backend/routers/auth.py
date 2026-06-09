@@ -2,6 +2,9 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from backend.services.db import db
 from backend.dependencies import get_current_user, is_allowed_email
+import structlog
+
+log = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -31,29 +34,35 @@ async def complete_profile(
     if not is_allowed_email(current_user["email"]):
         raise HTTPException(status_code=403, detail="Email domain not allowed")
 
-    existing = db.get_profile_by_id(current_user["id"])
+    try:
+        existing = db.get_profile_by_id(current_user["id"])
 
-    if existing:
-        return existing
-    
-    employee_record = db.get_employee_by_email(current_user["email"])
-    if not employee_record:
-        raise HTTPException(status_code=404, detail="Your email is not in the employee directory. Please contact HR.")
-    
-    location = employee_record.get("location")
-    if not location:
-        raise HTTPException(status_code=404, detail="Location not found for your email. Please contact HR.")
-    
-    role = "employee"
-    if employee_record.get("role") in ("employee", "hr"):
-        role = employee_record["role"]
+        if existing:
+            return existing
+        
+        employee_record = db.get_employee_by_email(current_user["email"])
+        if not employee_record:
+            raise HTTPException(status_code=404, detail="Your email is not in the employee directory. Please contact HR.")
+        
+        location = employee_record.get("location")
+        if not location:
+            raise HTTPException(status_code=404, detail="Location not found for your email. Please contact HR.")
+        
+        role = "employee"
+        if employee_record.get("role") in ("employee", "hr"):
+            role = employee_record["role"]
 
-    profile = db.create_profile(
-        user_id=current_user["id"],
-        email=current_user["email"],
-        name=current_user["name"],
-        location=location,
-        role=role,
-    )
+        profile = db.create_profile(
+            user_id=current_user["id"],
+            email=current_user["email"],
+            name=current_user["name"],
+            location=location,
+            role=role,
+        )
 
-    return profile
+        return profile
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error("complete_profile.error", error=str(e), user_id=current_user.get("id"))
+        raise HTTPException(status_code=500, detail=f"Profile setup failed: {e}")

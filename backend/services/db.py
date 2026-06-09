@@ -41,7 +41,10 @@ class SupabaseDB:
         return response.data[0] if response.data else None
 
     def create_profile(self, user_id: str, email: str, name: str, location: str, role: str = "employee") -> Dict[str, Any]:
-        """Create a new user profile."""
+        """Create a new user profile. Returns existing profile if it was already created (handles race conditions)."""
+        existing = self.get_profile_by_id(user_id)
+        if existing:
+            return existing
         response = self.client.table("profiles").insert({
             "id": user_id,
             "email": email,
