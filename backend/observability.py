@@ -3,8 +3,6 @@ import sys
 import structlog
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 
 def configure_logging(log_level: str = "INFO") -> None:
@@ -32,11 +30,9 @@ def configure_logging(log_level: str = "INFO") -> None:
 
 
 def configure_tracing(app) -> None:
-    """Configure OpenTelemetry with console exporter for local development."""
+    """Configure OpenTelemetry tracing. ConsoleSpanExporter removed — it floods stdout at 500+ lines/sec in production."""
     provider = TracerProvider()
-    provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
     trace.set_tracer_provider(provider)
-    FastAPIInstrumentor.instrument_app(app)
 
 
 def get_tracer(name: str):
